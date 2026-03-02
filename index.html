@@ -1,0 +1,284 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIMMIT AI QUEST</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          'deep-emerald': '#003322',
+          'ice-blue': '#eaf0f7',
+          'brand-purple': '#741cd9',
+          'soft-mint': '#d1e8d9',
+          'vibrant-teal': '#18cf91',
+          'lavender-mist': '#c1bcfa'
+        }
+      }
+    }
+  }
+</script>
+  
+  <!-- Removed PWA additions -->
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Exo+2:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --deep-emerald: #003322;
+      --ice-blue: #eaf0f7;
+      --brand-purple: #741cd9;
+      --soft-mint: #d1e8d9;
+      --vibrant-teal: #18cf91;
+      --lavender-mist: #c1bcfa;
+    }
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: radial-gradient(circle at 15% 10%, rgba(116, 28, 217, 0.12), transparent 40%),
+                  radial-gradient(circle at 85% 0%, rgba(24, 207, 145, 0.15), transparent 45%),
+                  #eaf0f7;
+      color: var(--deep-emerald);
+    }
+    .font-title {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .font-mono-data {
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 0.02em;
+    }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 18px 30px rgba(193, 188, 250, 0.4);
+      backdrop-filter: blur(14px);
+    }
+    .glass-chip {
+      background: rgba(255, 255, 255, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 20px rgba(193, 188, 250, 0.35);
+      backdrop-filter: blur(12px);
+    }
+    .glass-input {
+      background: rgba(255, 255, 255, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      color: var(--deep-emerald);
+      backdrop-filter: blur(12px);
+    }
+    .glass-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(116, 28, 217, 0.35);
+      border-color: rgba(116, 28, 217, 0.6);
+    }
+    .aero-gloss {
+      position: relative;
+      overflow: hidden;
+    }
+    .aero-gloss::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 50%;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
+      pointer-events: none;
+    }
+    .simmit-hero {
+      background:
+        radial-gradient(120% 120% at 10% 10%, rgba(116, 28, 217, 0.25), rgba(255, 255, 255, 0) 55%),
+        radial-gradient(120% 120% at 90% 0%, rgba(24, 207, 145, 0.25), rgba(255, 255, 255, 0) 60%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(209, 232, 217, 0.55));
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 30px 80px rgba(193, 188, 250, 0.35);
+      backdrop-filter: blur(16px);
+    }
+    .simmit-card {
+      background: rgba(255, 255, 255, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 24px 50px rgba(193, 188, 250, 0.35);
+      backdrop-filter: blur(16px);
+    }
+    .simmit-glow {
+      text-shadow: 0 0 18px rgba(193, 188, 250, 0.6);
+    }
+    .simmit-button {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #741cd9, #18cf91);
+      box-shadow: 0 18px 30px rgba(116, 28, 217, 0.35);
+      color: white;
+    }
+    .simmit-button::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 50%;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
+      pointer-events: none;
+    }
+    .simmit-button:hover {
+      transform: translateY(-1px) scale(1.01);
+      box-shadow: 0 22px 36px rgba(24, 207, 145, 0.35);
+    }
+    .simmit-orb {
+      background: radial-gradient(circle, rgba(193, 188, 250, 0.7), rgba(193, 188, 250, 0));
+      filter: blur(0.5px);
+      animation: pulse-float 6s ease-in-out infinite;
+    }
+    .simmit-orb.orb-delay {
+      animation-delay: 1.5s;
+    }
+    .simmit-scanline {
+      background: linear-gradient(90deg, rgba(116, 28, 217, 0), rgba(116, 28, 217, 0.25), rgba(116, 28, 217, 0));
+      animation: scanline 5s ease-in-out infinite;
+      opacity: 0.6;
+    }
+
+    .simmit-shell {
+      position: relative;
+      background:
+        radial-gradient(120% 120% at 10% 0%, rgba(116, 28, 217, 0.18), rgba(255, 255, 255, 0) 55%),
+        radial-gradient(120% 120% at 90% -10%, rgba(24, 207, 145, 0.18), rgba(255, 255, 255, 0) 60%),
+        linear-gradient(180deg, rgba(234, 240, 247, 0.95), rgba(234, 240, 247, 0.85));
+    }
+    .bg-brand-dark\/10 {
+      background-color: rgba(234, 240, 247, 0.6);
+    }
+    .aero-shadow {
+      box-shadow: 0 8px 30px rgba(193, 188, 250, 0.4);
+    }
+    .aero-glow {
+      box-shadow: 0 0 24px rgba(116, 28, 217, 0.35);
+    }
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .no-scrollbar {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+    @keyframes fade-down-out {
+      0% {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      10%, 80% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+    }
+    .animate-fade-down-out {
+      animation: fade-down-out 7s ease-in-out forwards;
+    }
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out forwards;
+    }
+    @keyframes float-up-fade {
+      0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.96);
+      }
+      15% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      70% {
+        opacity: 0.9;
+        transform: translateY(-18px) translateX(40px) scale(1.02);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-32px) translateX(80px) scale(1.05);
+      }
+    }
+    .animate-float-up-fade {
+      animation: float-up-fade 0.9s ease-out forwards;
+    }
+
+    @keyframes pulse-float\n\n    @keyframes soft-glow {
+      0%, 100% {
+        box-shadow: 0 0 0 6px rgba(116, 28, 217, 0.10), 0 0 18px rgba(116, 28, 217, 0.18);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(116, 28, 217, 0.18), 0 0 26px rgba(24, 207, 145, 0.14);
+      }
+    }
+
+    .animate-soft-glow {
+      animation: soft-glow 4.8s ease-in-out infinite;
+    }
+    @keyframes scanline {
+      0% { transform: translateX(-100%); }
+      50% { transform: translateX(0); }
+      100% { transform: translateX(100%); }
+    }
+    .flashcard-container {
+      perspective: 1000px;
+    }
+    .flashcard {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+    .flashcard.is-flipped {
+      transform: rotateY(180deg);
+    }
+    .flashcard-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+    }
+    .flashcard-back {
+      transform: rotateY(180deg);
+    }
+
+</style>
+  <script src="/env.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.0.1",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.0",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+  }
+}
+</script>
+</head>
+<!-- Changed default bg to a neutral dark color that works with the gradient -->
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.mjs" type="module"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
+
+
+
+
+

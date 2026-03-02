@@ -1,0 +1,11 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: medsim-beta
+spec:
+  template:
+    spec:
+      containers:
+        - image: gcr.io/PROJECT_ID/medsim-beta
+          ports:
+            - containerPort: 8080

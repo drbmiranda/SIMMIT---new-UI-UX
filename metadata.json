@@ -1,0 +1,7 @@
+{
+  "name": "SIMMIT AI QUEST",
+  "description": "Uma plataforma de treinamento para Exames Clínicos Objetivos Estruturados (OSCE). Gere casos, simule atendimentos e receba feedback com IA.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

@@ -1,0 +1,22 @@
+
+{
+  "short_name": "SIMMIT AI",
+  "name": "SIMMIT AI QUEST",
+  "description": "Uma plataforma de treinamento para Exames Clínicos Objetivos Estruturados (OSCE). Gere casos, simule atendimentos e receba feedback com IA.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1e293b",
+  "background_color": "#f1f5f9"
+}
