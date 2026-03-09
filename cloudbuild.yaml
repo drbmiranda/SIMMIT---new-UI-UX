@@ -11,7 +11,7 @@ steps:
         'gcloud',
         'run',
         'deploy',
-        '${_SERVICE}',
+        'simmit-design',
         '--image',
         '${_IMAGE}',
         '--region',
@@ -27,10 +27,9 @@ images:
   - '${_IMAGE}'
 
 substitutions:
-  _SERVICE: 'simmit-design'
   _REGION: 'us-central1'
   _AR_REPO: 'simmit-images'
-  _IMAGE: '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA'
+  _IMAGE: '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA'
   _SECRET_GEMINI_API_KEY: 'simmit-gemini-api-key'
   _SECRET_SUPABASE_URL: 'simmit-supabase-url'
   _SECRET_SUPABASE_ANON_KEY: 'simmit-supabase-anon-key'
