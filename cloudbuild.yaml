@@ -1,9 +1,9 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', '${_IMAGE}', '.']
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '${_IMAGE}']
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     args:
@@ -13,7 +13,7 @@ steps:
         'deploy',
         'simmit-design',
         '--image',
-        '${_IMAGE}',
+        '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA',
         '--region',
         '${_REGION}',
         '--platform',
@@ -24,12 +24,11 @@ steps:
       ]
 
 images:
-  - '${_IMAGE}'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA'
 
 substitutions:
   _REGION: 'us-central1'
   _AR_REPO: 'simmit-images'
-  _IMAGE: '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA'
   _SECRET_GEMINI_API_KEY: 'simmit-gemini-api-key'
   _SECRET_SUPABASE_URL: 'simmit-supabase-url'
   _SECRET_SUPABASE_ANON_KEY: 'simmit-supabase-anon-key'
