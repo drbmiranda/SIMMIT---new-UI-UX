@@ -6,6 +6,6 @@ spec:
   template:
     spec:
       containers:
-        - image: gcr.io/PROJECT_ID/medsim-beta
+        - image: us-central1-docker.pkg.dev/PROJECT_ID/simmit-images/medsim-beta:latest
           ports:
             - containerPort: 8080
