@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { gsap } from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -7,6 +7,7 @@ import { SIMMIT_COMMANDS } from '../constants';
 import MessageItem from './MessageItem';
 import LoadingSpinner from './LoadingSpinner';
 import SimulationCommandDrawer from './SimulationCommandDrawer';
+import { generatePatientPortrait } from '../services/geminiService';
 
 gsap.registerPlugin(Flip);
 
@@ -74,6 +75,40 @@ const normalizeCommandText = (text: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+
+const inferPatientProfileFromCase = (caseText: string) => {
+  const normalized = caseText.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+  const ageMatch = normalized.match(/(\d{1,3})\s*anos?/);
+  const age = ageMatch ? Number(ageMatch[1]) : null;
+
+  let sexo = 'N?o especificado';
+  if (/(mulher|feminino|gestante|senhora|paciente feminina)/.test(normalized)) sexo = 'Feminino';
+  if (/(homem|masculino|senhor|paciente masculino)/.test(normalized)) sexo = 'Masculino';
+  if (/(crianca|crianca|menino|menina|lactente|pediatr)/.test(normalized)) sexo = sexo === 'N?o especificado' ? 'Pedi?trico' : sexo;
+
+  let faixa = 'Adulto';
+  if (age !== null) {
+    if (age <= 12) faixa = 'Crian?a';
+    else if (age <= 17) faixa = 'Adolescente';
+    else if (age >= 60) faixa = 'Idoso';
+  } else if (/idos|geriatr/.test(normalized)) faixa = 'Idoso';
+  else if (/crianca|lactente|pediatr|adolesc/.test(normalized)) faixa = 'Pedi?trico';
+
+  const hintParts = [faixa, sexo !== 'N?o especificado' ? sexo : null, age !== null ? `${age} anos` : null]
+    .filter(Boolean)
+    .join(', ');
+
+  return { age, sexo, faixa, profileHint: hintParts || 'Paciente cl?nico' };
+};
+
+const extractChiefComplaint = (caseText: string): string => {
+  const clean = caseText.replace(/\s+/g, ' ').trim();
+  if (!clean) return 'Queixa n?o identificada no caso.';
+  const firstSentence = clean.split(/(?<=[.!?])\s+/)[0] || clean;
+  return firstSentence.slice(0, 180);
+};
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages,
   onSendMessage,
@@ -99,12 +134,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [completedExamActions, setCompletedExamActions] = useState<Set<ExamActionKey>>(new Set());
   const [activeBadge, setActiveBadge] = useState<BadgeState | null>(null);
   const [showVictory, setShowVictory] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [isPatientSpeaking, setIsPatientSpeaking] = useState(false);
+  const [patientPortraitUrl, setPatientPortraitUrl] = useState<string | null>(null);
+  const [isPortraitLoading, setIsPortraitLoading] = useState(false);
+  const [portraitError, setPortraitError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const stopProcessingRef = useRef(false);
+  const spokenPatientMessagesRef = useRef<Set<string>>(new Set());
+  const patientProfileRef = useRef<{ sexo: string; faixa: string; profileHint: string; age: number | null }>({
+    sexo: 'N?o especificado',
+    faixa: 'Adulto',
+    profileHint: 'Paciente cl?nico',
+    age: null,
+  });
 
   const initialCaseMessage = messages.find((message) => {
     if (message.sender !== 'SIMMIT') return false;
@@ -165,6 +213,98 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       recognitionRef.current?.stop();
     };
   }, []);
+
+  useEffect(() => {
+    const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
+    setVoiceSupported(canSpeak);
+
+    if (!canSpeak) return;
+
+    const loadVoices = () => window.speechSynthesis.getVoices();
+    loadVoices();
+    window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
+
+    return () => {
+      window.speechSynthesis.removeEventListener?.('voiceschanged', loadVoices);
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!initialCaseText) return;
+
+    const profile = inferPatientProfileFromCase(initialCaseText);
+    patientProfileRef.current = profile;
+
+    let isCancelled = false;
+    const loadPortrait = async () => {
+      setIsPortraitLoading(true);
+      setPortraitError(null);
+
+      try {
+        const imageUrl = await generatePatientPortrait({
+          caseSummary: initialCaseText,
+          profileHint: profile.profileHint,
+          subject,
+        });
+
+        if (!isCancelled) {
+          setPatientPortraitUrl(imageUrl);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setPatientPortraitUrl(null);
+          setPortraitError(error instanceof Error ? error.message : 'Falha ao gerar foto do paciente.');
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsPortraitLoading(false);
+        }
+      }
+    };
+
+    loadPortrait();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [initialCaseText, subject]);
+
+  useEffect(() => {
+    if (!voiceSupported || !voiceEnabled) return;
+
+    const latestPatientMessage = [...visibleMessages]
+      .reverse()
+      .find((message) => message.sender === 'Paciente' && message.text?.trim());
+
+    if (!latestPatientMessage) return;
+    if (spokenPatientMessagesRef.current.has(latestPatientMessage.id)) return;
+
+    const textToSpeak = latestPatientMessage.text
+      .replace(/\[(.*?)\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!textToSpeak) return;
+
+    spokenPatientMessagesRef.current.add(latestPatientMessage.id);
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    const voices = window.speechSynthesis.getVoices();
+    const ptVoice = voices.find((voice) => voice.lang.toLowerCase().startsWith('pt'));
+    if (ptVoice) utterance.voice = ptVoice;
+
+    utterance.onstart = () => setIsPatientSpeaking(true);
+    utterance.onend = () => setIsPatientSpeaking(false);
+    utterance.onerror = () => setIsPatientSpeaking(false);
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, [visibleMessages, voiceEnabled, voiceSupported]);
 
   useEffect(() => {
     if (!initialCaseMessage) return;
@@ -258,6 +398,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const examProgress = Math.round((completedExamActions.size / EXAM_ACTION_KEYS.length) * 100);
 
+  const patientProfile = patientProfileRef.current;
+  const chiefComplaint = extractChiefComplaint(initialCaseText);
+
   if (showFeedback) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center bg-[#eaf0f7] p-6 text-center text-[#003322]">
@@ -344,6 +487,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div className="glass-chip px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#003322] font-mono-data">
               {stamina} STAMINA
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setVoiceEnabled((prev) => {
+                  const next = !prev;
+                  if (!next && voiceSupported) {
+                    window.speechSynthesis.cancel();
+                    setIsPatientSpeaking(false);
+                  }
+                  return next;
+                });
+              }}
+              className="glass-chip px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#003322] font-mono-data"
+              title={voiceSupported ? 'Ligar ou desligar voz do paciente' : 'Voz n?o suportada neste navegador'}
+              disabled={!voiceSupported}
+            >
+              {voiceSupported ? (voiceEnabled ? 'VOZ ON' : 'VOZ OFF') : 'VOZ N/A'}
+            </button>
             <div className="glass-chip px-4 py-2 text-sm font-semibold text-[#003322] font-mono-data">
               {runningScore} pts
             </div>
@@ -370,6 +531,58 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4" ref={scrollContainerRef}>
+        {initialCaseMessage && (
+          <div className="mb-4 rounded-3xl border border-white/70 bg-white/65 p-4 shadow-[0_16px_36px_rgba(116,28,217,0.14)] backdrop-blur-xl">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="relative mx-auto sm:mx-0">
+                <div
+                  className={`relative h-24 w-24 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-[#741cd9]/15 to-[#18cf91]/20 ${
+                    isPatientSpeaking ? 'ring-4 ring-[#18cf91]/60 shadow-[0_0_28px_rgba(24,207,145,0.55)]' : ''
+                  }`}
+                >
+                  {patientPortraitUrl ? (
+                    <img src={patientPortraitUrl} alt="Retrato do paciente" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.15em] text-[#003322]/60">
+                      {isPortraitLoading ? 'Gerando foto' : 'Paciente'}
+                    </div>
+                  )}
+                </div>
+                {isPatientSpeaking && (
+                  <span className="pointer-events-none absolute inset-0 rounded-2xl border-2 border-[#18cf91]/60 animate-ping" />
+                )}
+              </div>
+
+              <div className="flex-1">
+                <p className="text-[10px] uppercase tracking-[0.38em] text-[#741cd9]">Ficha do Paciente</p>
+                <p className="mt-1 text-sm text-[#003322]/75">{chiefComplaint}</p>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                  <div className="rounded-xl border border-white/70 bg-white/70 px-3 py-2">
+                    <p className="text-[#003322]/55">Sexo</p>
+                    <p className="font-semibold text-[#003322]">{patientProfile.sexo}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/70 bg-white/70 px-3 py-2">
+                    <p className="text-[#003322]/55">Faixa</p>
+                    <p className="font-semibold text-[#003322]">{patientProfile.faixa}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/70 bg-white/70 px-3 py-2">
+                    <p className="text-[#003322]/55">Idade</p>
+                    <p className="font-semibold text-[#003322]">{patientProfile.age !== null ? `${patientProfile.age} anos` : 'N?o informada'}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/70 bg-white/70 px-3 py-2">
+                    <p className="text-[#003322]/55">Voz</p>
+                    <p className="font-semibold text-[#003322]">{voiceEnabled ? 'Ativa' : 'Desligada'}</p>
+                  </div>
+                </div>
+
+                {portraitError && (
+                  <p className="mt-2 text-xs text-red-600">{portraitError}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {isTutorialActive && (
           <div className="mb-3 simmit-card aero-gloss rounded-2xl p-4 text-[#003322]">
             <p className="text-xs uppercase tracking-[0.3em] text-[#741cd9]">Modo Tutorial</p>
@@ -391,17 +604,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         )}
 
-        {initialCaseMessage && (
-          <div className="mb-3 simmit-card aero-gloss rounded-2xl p-4 text-[#003322]">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#741cd9]">Caso Clínico Inicial</p>
-            <div className="mt-2 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.2em] text-[#003322]/60">
-              <span className="rounded-full border border-white/60 bg-white/70 px-2 py-1">Você: médico</span>
-              <span className="rounded-full border border-white/60 bg-white/70 px-2 py-1">IA: paciente</span>
-            </div>
-            <p className="mt-3 whitespace-pre-wrap text-sm text-[#003322]/80">{initialCaseText}</p>
-          </div>
-        )}
-
+        
         {visibleMessages.map((msg) => (
           <MessageItem key={msg.id} message={msg} />
         ))}

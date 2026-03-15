@@ -12,13 +12,15 @@ View your app in AI Studio: https://ai.studio/apps/drive/19JjjtYNxm656FQaYBqUL5f
 
 **Prerequisites:**  Node.js
 
-
 1. Install dependencies:
    `npm install`
 2. Create `.env.local` from `.env.example` and fill in:
    - `VITE_GEMINI_API_KEY`
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_SUPABASE_QUESTIONS_URL`
+   - `VITE_SUPABASE_QUESTIONS_ANON_KEY`
+   - `VITE_SUPABASE_QUESTIONS_TABLE`
 3. Run the app:
    `npm run dev`
 
@@ -29,14 +31,20 @@ Vite injects `VITE_*` variables at build time. Ensure these are available during
 - `VITE_GEMINI_API_KEY`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_QUESTIONS_URL`
+- `VITE_SUPABASE_QUESTIONS_ANON_KEY`
+- `VITE_SUPABASE_QUESTIONS_TABLE`
 
 ### Cloud Build + Cloud Run deploy
 
 This repo includes `cloudbuild.yaml` that builds and deploys to Cloud Run using substitution vars:
 
-- `_VITE_GEMINI_API_KEY`
-- `_VITE_SUPABASE_URL`
-- `_VITE_SUPABASE_ANON_KEY`
+- `_SECRET_GEMINI_API_KEY`
+- `_SECRET_SUPABASE_URL`
+- `_SECRET_SUPABASE_ANON_KEY`
+- `_SECRET_SUPABASE_QUESTIONS_URL`
+- `_SECRET_SUPABASE_QUESTIONS_ANON_KEY`
+- `_SECRET_SUPABASE_QUESTIONS_TABLE`
 - `_SERVICE` (default: `medsim-beta`)
 - `_REGION` (default: `us-central1`)
 - `_IMAGE` (default: `gcr.io/$PROJECT_ID/medsim-beta`)

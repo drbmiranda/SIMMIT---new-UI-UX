@@ -20,7 +20,7 @@ steps:
         'managed',
         '--allow-unauthenticated',
         '--set-secrets',
-        'VITE_GEMINI_API_KEY=${_SECRET_GEMINI_API_KEY}:latest,VITE_SUPABASE_URL=${_SECRET_SUPABASE_URL}:latest,VITE_SUPABASE_ANON_KEY=${_SECRET_SUPABASE_ANON_KEY}:latest'
+        'VITE_GEMINI_API_KEY=${_SECRET_GEMINI_API_KEY}:latest,VITE_SUPABASE_URL=${_SECRET_SUPABASE_URL}:latest,VITE_SUPABASE_ANON_KEY=${_SECRET_SUPABASE_ANON_KEY}:latest,VITE_SUPABASE_QUESTIONS_URL=${_SECRET_SUPABASE_QUESTIONS_URL}:latest,VITE_SUPABASE_QUESTIONS_ANON_KEY=${_SECRET_SUPABASE_QUESTIONS_ANON_KEY}:latest,VITE_SUPABASE_QUESTIONS_TABLE=${_SECRET_SUPABASE_QUESTIONS_TABLE}:latest'
       ]
 
 images:
@@ -32,6 +32,9 @@ substitutions:
   _SECRET_GEMINI_API_KEY: 'simmit-gemini-api-key'
   _SECRET_SUPABASE_URL: 'simmit-supabase-url'
   _SECRET_SUPABASE_ANON_KEY: 'simmit-supabase-anon-key'
+  _SECRET_SUPABASE_QUESTIONS_URL: 'simmit-supabase-questions-url'
+  _SECRET_SUPABASE_QUESTIONS_ANON_KEY: 'simmit-supabase-questions-anon-key'
+  _SECRET_SUPABASE_QUESTIONS_TABLE: 'simmit-supabase-questions-table'
 
 options:
   logging: CLOUD_LOGGING_ONLY
