@@ -1,5 +1,5 @@
 // Change v1 to v2 to invalidate the old cache
-const CACHE_NAME = 'simmit-rpg-cache-v2';
+const CACHE_NAME = 'simmit-rpg-cache-v3';
 // This list should include all the core files for the app shell.
 // IMPORTANT: Add any new components to this list.
 const urlsToCache = [
@@ -35,7 +35,8 @@ const urlsToCache = [
 
 // Install event: open cache and add all core files to it
 self.addEventListener('install', event => {
-  // We don't call skipWaiting() here anymore. We'll wait for the user to trigger it.
+  // Activate the new service worker immediately after install.
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -58,6 +59,7 @@ self.addEventListener('message', (event) => {
 // Activate event: clean up old caches
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
+  self.skipWaiting();
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
