@@ -83,17 +83,17 @@ const inferPatientProfileFromCase = (caseText: string) => {
   const age = ageMatch ? Number(ageMatch[1]) : null;
 
   let sexo = 'N?o especificado';
-  if (/(mulher|feminino|gestante|senhora|paciente feminina)/.test(normalized)) sexo = 'Feminino';
-  if (/(homem|masculino|senhor|paciente masculino)/.test(normalized)) sexo = 'Masculino';
-  if (/(crianca|crianca|menino|menina|lactente|pediatr)/.test(normalized)) sexo = sexo === 'N?o especificado' ? 'Pedi?trico' : sexo;
+  if (/\b(mulher|feminino|gestante|senhora|paciente feminina)\b/.test(normalized)) sexo = 'Feminino';
+  if (/\b(homem|masculino|senhor|paciente masculino)\b/.test(normalized)) sexo = 'Masculino';
+  if (/\b(crianca|crianca|menino|menina|lactente|pediatr)\b/.test(normalized)) sexo = sexo === 'N?o especificado' ? 'Pedi?trico' : sexo;
 
   let faixa = 'Adulto';
   if (age !== null) {
     if (age <= 12) faixa = 'Crian?a';
     else if (age <= 17) faixa = 'Adolescente';
     else if (age >= 60) faixa = 'Idoso';
-  } else if (/idos|geriatr/.test(normalized)) faixa = 'Idoso';
-  else if (/crianca|lactente|pediatr|adolesc/.test(normalized)) faixa = 'Pedi?trico';
+  } else if (/\bidos|geriatr\b/.test(normalized)) faixa = 'Idoso';
+  else if (/\bcrianca|lactente|pediatr|adolesc\b/.test(normalized)) faixa = 'Pedi?trico';
 
   const hintParts = [faixa, sexo !== 'N?o especificado' ? sexo : null, age !== null ? `${age} anos` : null]
     .filter(Boolean)
@@ -582,7 +582,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </div>
 
                 {portraitError && (
-                  <p className="mt-2 text-xs text-red-600">{portraitError}</p>
+                  <p className="mt-2 text-xs text-[#003322]/60">Foto clinica indisponivel no momento.</p>
                 )}
               </div>
             </div>
