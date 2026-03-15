@@ -976,7 +976,7 @@ ${osceCaseData.criteriosDeAvaliacao.join('\n')}
 
             sender: 'SIMMIT',
 
-            text: `SIMMIT: Caso Cl?nico Inicial
+            text: `SIMMIT: Caso Clinico Inicial
 Voc? ? o m?dico. A IA ? o paciente.
 ${sanitizedScenario}`,
 

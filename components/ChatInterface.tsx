@@ -160,7 +160,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toUpperCase();
-    return normalized.startsWith('SIMMIT: CASO CLINICO INICIAL');
+    return /^SIMMIT:\s*CASO CL.?NICO INICIAL/.test(normalized);
   });
   const initialCaseText = initialCaseMessage
     ? initialCaseMessage.text
