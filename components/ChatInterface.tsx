@@ -287,8 +287,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     if (!textToSpeak) return;
 
-    spokenPatientMessagesRef.current.add(latestPatientMessage.id);
-
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = 'pt-BR';
     utterance.rate = 1;
@@ -298,11 +296,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const ptVoice = voices.find((voice) => voice.lang.toLowerCase().startsWith('pt'));
     if (ptVoice) utterance.voice = ptVoice;
 
-    utterance.onstart = () => setIsPatientSpeaking(true);
+    utterance.onstart = () => {
+      spokenPatientMessagesRef.current.add(latestPatientMessage.id);
+      setIsPatientSpeaking(true);
+    };
     utterance.onend = () => setIsPatientSpeaking(false);
-    utterance.onerror = () => setIsPatientSpeaking(false);
+    utterance.onerror = () => {
+      setIsPatientSpeaking(false);
+      spokenPatientMessagesRef.current.delete(latestPatientMessage.id);
+    };
 
     window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
     window.speechSynthesis.speak(utterance);
   }, [visibleMessages, voiceEnabled, voiceSupported]);
 
