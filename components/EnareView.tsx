@@ -187,6 +187,10 @@ const loadQuestionsFromSupabase = async (subject: MedicalSubject, count: number)
     throw new Error(query.error?.message || 'Falha ao consultar banco de questoes no Supabase.');
   }
 
+  const allMappedQuestions = (query.data as Record<string, unknown>[])
+    .map(toQuestion)
+    .filter((question): question is LoadedQuestion => Boolean(question));
+
   const subjectQuestions = (query.data as Record<string, unknown>[])
     .filter((row) => {
       const rowSubject =
@@ -205,7 +209,10 @@ const loadQuestionsFromSupabase = async (subject: MedicalSubject, count: number)
     .map(toQuestion)
     .filter((question): question is LoadedQuestion => Boolean(question));
 
-  return shuffle(subjectQuestions).slice(0, count);
+  // If subject labels from the DB do not match app labels, prefer using DB data
+  // (mixed subjects) instead of falling back to the legacy local question bank.
+  const source = subjectQuestions.length > 0 ? subjectQuestions : allMappedQuestions;
+  return shuffle(source).slice(0, count);
 };
 
 const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
