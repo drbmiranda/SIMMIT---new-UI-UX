@@ -560,25 +560,30 @@ Regras visuais:
 3) Qualidade alta, realista e limpa para UI de ficha m?dica.
 4) N?o incluir elementos de terror/gore ou conte?do sens?vel.`;
 
-  try {
-    return await withRetry(async () => {
-      const response: GenerateImagesResponse = await ai.models.generateImages({
-        model: ModelNames.IMAGEN,
-        prompt,
-        config: { numberOfImages: 1, outputMimeType: 'image/jpeg' },
+  const imageModels = [ModelNames.IMAGEN, 'imagen-3.0-generate-002', 'imagen-3.0-fast-generate-001'];
+
+  for (const model of imageModels) {
+    try {
+      return await withRetry(async () => {
+        const response: GenerateImagesResponse = await ai.models.generateImages({
+          model,
+          prompt,
+          config: { numberOfImages: 1, outputMimeType: 'image/jpeg' },
+        });
+
+        const imageBytes = response.generatedImages?.[0]?.image?.imageBytes;
+        if (!imageBytes) {
+          throw new Error(`Modelo ${model} retornou sem imagem.`);
+        }
+
+        return `data:image/jpeg;base64,${imageBytes}`;
       });
-
-      const imageBytes = response.generatedImages?.[0]?.image?.imageBytes;
-      if (!imageBytes) {
-        throw new Error('Imagen retornou sem imagem.');
-      }
-
-      return `data:image/jpeg;base64,${imageBytes}`;
-    });
-  } catch (error) {
-    console.error('Erro ao gerar retrato do paciente:', error);
-    throw new Error('N?o foi poss?vel gerar a foto do paciente agora.');
+    } catch (error) {
+      console.warn(`Falha ao gerar retrato com ${model}:`, error);
+    }
   }
+
+  throw new Error('Nao foi possivel gerar a foto do paciente com os modelos Imagen configurados. Verifique permissao do modelo e faturamento da API.');
 };
 
 export const parseImagePromptFromText = (text: string): string | null => {
