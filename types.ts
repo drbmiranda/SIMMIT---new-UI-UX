@@ -15,7 +15,7 @@ export interface GameMessage {
 
 export enum ModelNames {
   GEMINI = 'gemini-2.5-flash',
-  IMAGEN = 'imagen-3.0-generate-002',
+  IMAGEN = 'imagen-4.0-generate-preview-06-06',
 }
 
 export interface OsceCaseData {

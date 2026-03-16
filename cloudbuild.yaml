@@ -1,9 +1,9 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA', '.']
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA']
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     args:
@@ -11,9 +11,9 @@ steps:
         'gcloud',
         'run',
         'deploy',
-        'simmit-design',
+        '${_SERVICE}',
         '--image',
-        '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA',
+        '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA',
         '--region',
         '${_REGION}',
         '--platform',
@@ -24,9 +24,10 @@ steps:
       ]
 
 images:
-  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/simmit-design:$SHORT_SHA'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA'
 
 substitutions:
+  _SERVICE: 'medsim-beta'
   _REGION: 'us-central1'
   _AR_REPO: 'simmit-images'
   _SECRET_GEMINI_API_KEY: 'simmit-gemini-api-key'

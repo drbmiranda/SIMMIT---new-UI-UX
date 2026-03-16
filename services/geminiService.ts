@@ -1,4 +1,4 @@
-import { GoogleGenAI, Chat, Type, GenerateContentParameters, GenerateImagesResponse } from "@google/genai";
+import { GoogleGenAI, Chat, Type, Modality, GenerateContentParameters, GenerateImagesResponse } from "@google/genai";
 import { GameMessage, ModelNames, OsceCaseData, MedicalSubject, MultipleChoiceQuestion, SimulationResult, PerformanceAnalysis, Flashcard } from "../types";
 import { SYSTEM_INSTRUCTION_STUDENT, SYSTEM_INSTRUCTION_TEACHER_JSON, IMAGE_PROMPT_REGEX, PATIENT_INSTRUCTIONS_REGEX, OSCE_CRITERIA_REGEX } from "../constants";
 import { getRuntimeEnv } from "./runtimeEnv";
@@ -560,7 +560,7 @@ Regras visuais:
 3) Qualidade alta, realista e limpa para UI de ficha m?dica.
 4) N?o incluir elementos de terror/gore ou conte?do sens?vel.`;
 
-  const imageModels = [ModelNames.IMAGEN, 'imagen-3.0-generate-002', 'imagen-3.0-fast-generate-001'];
+  const imageModels = [ModelNames.IMAGEN, 'imagen-4.0-ultra-generate-preview-06-06', 'imagen-4.0-fast-generate-preview-06-06', 'imagen-3.0-generate-002', 'imagen-3.0-fast-generate-001'];
 
   for (const model of imageModels) {
     try {
@@ -590,5 +590,71 @@ export const parseImagePromptFromText = (text: string): string | null => {
   const match = text.match(IMAGE_PROMPT_REGEX);
   return match && match[1] ? match[1].trim() : null;
 };
+type SynthesizedSpeech = {
+  audioBytesBase64: string;
+  mimeType: string;
+  model: string;
+};
 
+const TTS_MODELS = ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-preview-tts'];
 
+const extractInlineAudioFromResponse = (response: any): { data: string; mimeType: string } | null => {
+  const parts = response?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return null;
+
+  for (const part of parts) {
+    const data = part?.inlineData?.data;
+    const mimeType = part?.inlineData?.mimeType;
+    if (typeof data === 'string' && typeof mimeType === 'string' && mimeType.toLowerCase().startsWith('audio/')) {
+      return { data, mimeType };
+    }
+  }
+
+  return null;
+};
+
+export const synthesizePatientSpeech = async (text: string): Promise<SynthesizedSpeech> => {
+  const ai = getGenAI();
+  const cleanText = text.replace(/\s+/g, ' ').trim();
+
+  if (!cleanText) {
+    throw new Error('Texto vazio para sintese de voz.');
+  }
+
+  for (const model of TTS_MODELS) {
+    try {
+      const response = await withRetry(async () => {
+        return ai.models.generateContent({
+          model,
+          contents: cleanText,
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              languageCode: 'pt-BR',
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: 'Aoede',
+                },
+              },
+            },
+          },
+        });
+      });
+
+      const inlineAudio = extractInlineAudioFromResponse(response);
+      if (!inlineAudio) {
+        throw new Error(`Modelo ${model} nao retornou audio inline.`);
+      }
+
+      return {
+        audioBytesBase64: inlineAudio.data,
+        mimeType: inlineAudio.mimeType,
+        model,
+      };
+    } catch (error) {
+      console.warn(`Falha ao sintetizar voz com ${model}:`, error);
+    }
+  }
+
+  throw new Error('Nao foi possivel sintetizar voz com os modelos TTS configurados.');
+};

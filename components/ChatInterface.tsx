@@ -7,7 +7,7 @@ import { SIMMIT_COMMANDS } from '../constants';
 import MessageItem from './MessageItem';
 import LoadingSpinner from './LoadingSpinner';
 import SimulationCommandDrawer from './SimulationCommandDrawer';
-import { generatePatientPortrait } from '../services/geminiService';
+import { generatePatientPortrait, synthesizePatientSpeech } from '../services/geminiService';
 
 gsap.registerPlugin(Flip);
 
@@ -109,6 +109,67 @@ const extractChiefComplaint = (caseText: string): string => {
   return firstSentence.slice(0, 180);
 };
 
+
+const base64ToBytes = (base64: string): Uint8Array => {
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
+
+const parseSampleRateFromMimeType = (mimeType: string): number => {
+  const match = mimeType.match(/rate=(\d+)/i);
+  const parsed = match ? Number(match[1]) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24000;
+};
+
+const pcm16ToWavBlob = (pcmBytes: Uint8Array, sampleRate: number): Blob => {
+  const wavHeaderSize = 44;
+  const buffer = new ArrayBuffer(wavHeaderSize + pcmBytes.length);
+  const view = new DataView(buffer);
+
+  const writeString = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i++) {
+      view.setUint8(offset + i, value.charCodeAt(i));
+    }
+  };
+
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + pcmBytes.length, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeString(36, 'data');
+  view.setUint32(40, pcmBytes.length, true);
+
+  new Uint8Array(buffer, wavHeaderSize).set(pcmBytes);
+
+  return new Blob([buffer], { type: 'audio/wav' });
+};
+
+const audioBlobFromGemini = (audioBytesBase64: string, mimeType: string): Blob => {
+  const bytes = base64ToBytes(audioBytesBase64);
+  const normalizedMimeType = mimeType.toLowerCase();
+
+  if (normalizedMimeType.includes('audio/pcm') || normalizedMimeType.includes('audio/l16')) {
+    return pcm16ToWavBlob(bytes, parseSampleRateFromMimeType(mimeType));
+  }
+
+  return new Blob([bytes], { type: mimeType || 'audio/mpeg' });
+};
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages,
   onSendMessage,
@@ -147,6 +208,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const stopProcessingRef = useRef(false);
   const spokenPatientMessagesRef = useRef<Set<string>>(new Set());
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const activeAudioUrlRef = useRef<string | null>(null);
   const patientProfileRef = useRef<{ sexo: string; faixa: string; profileHint: string; age: number | null }>({
     sexo: 'N?o especificado',
     faixa: 'Adulto',
@@ -214,11 +277,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
-    setVoiceSupported(canSpeak);
+  const stopPatientVoice = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
 
-    if (!canSpeak) return;
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause();
+      activeAudioRef.current = null;
+    }
+
+    if (activeAudioUrlRef.current) {
+      URL.revokeObjectURL(activeAudioUrlRef.current);
+      activeAudioUrlRef.current = null;
+    }
+
+    setIsPatientSpeaking(false);
+  }, []);
+
+  useEffect(() => {
+    const canUseGeminiAudio = typeof window !== 'undefined' && typeof Audio !== 'undefined';
+    const canUseBrowserSpeech = typeof window !== 'undefined' && 'speechSynthesis' in window;
+    setVoiceSupported(canUseGeminiAudio || canUseBrowserSpeech);
+
+    if (!canUseBrowserSpeech) {
+      return () => {
+        stopPatientVoice();
+      };
+    }
 
     const loadVoices = () => window.speechSynthesis.getVoices();
     loadVoices();
@@ -226,9 +312,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     return () => {
       window.speechSynthesis.removeEventListener?.('voiceschanged', loadVoices);
-      window.speechSynthesis.cancel();
+      stopPatientVoice();
     };
-  }, []);
+  }, [stopPatientVoice]);
 
   useEffect(() => {
     if (!initialCaseText) return;
@@ -270,6 +356,43 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
   }, [initialCaseText, subject]);
 
+  const speakWithBrowserVoice = useCallback((textToSpeak: string, messageId: string): boolean => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return false;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    const voices = window.speechSynthesis.getVoices();
+    const ptVoice = voices.find((voice) => voice.lang.toLowerCase().startsWith('pt'));
+    if (ptVoice) {
+      utterance.voice = ptVoice;
+    }
+
+    utterance.onstart = () => {
+      spokenPatientMessagesRef.current.add(messageId);
+      setIsPatientSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      setIsPatientSpeaking(false);
+    };
+
+    utterance.onerror = () => {
+      setIsPatientSpeaking(false);
+      spokenPatientMessagesRef.current.delete(messageId);
+    };
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+    window.speechSynthesis.speak(utterance);
+
+    return true;
+  }, []);
+
   useEffect(() => {
     if (!voiceSupported || !voiceEnabled) return;
 
@@ -287,29 +410,53 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     if (!textToSpeak) return;
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1;
-    utterance.pitch = 1;
+    let canceled = false;
 
-    const voices = window.speechSynthesis.getVoices();
-    const ptVoice = voices.find((voice) => voice.lang.toLowerCase().startsWith('pt'));
-    if (ptVoice) utterance.voice = ptVoice;
+    const speak = async () => {
+      stopPatientVoice();
 
-    utterance.onstart = () => {
-      spokenPatientMessagesRef.current.add(latestPatientMessage.id);
-      setIsPatientSpeaking(true);
+      try {
+        const audio = await synthesizePatientSpeech(textToSpeak);
+        if (canceled) return;
+
+        const blob = audioBlobFromGemini(audio.audioBytesBase64, audio.mimeType);
+        const objectUrl = URL.createObjectURL(blob);
+        activeAudioUrlRef.current = objectUrl;
+
+        const playback = new Audio(objectUrl);
+        activeAudioRef.current = playback;
+
+        playback.onplay = () => {
+          spokenPatientMessagesRef.current.add(latestPatientMessage.id);
+          setIsPatientSpeaking(true);
+        };
+
+        playback.onended = () => {
+          setIsPatientSpeaking(false);
+        };
+
+        playback.onerror = () => {
+          setIsPatientSpeaking(false);
+          spokenPatientMessagesRef.current.delete(latestPatientMessage.id);
+        };
+
+        await playback.play();
+      } catch (error) {
+        if (canceled) return;
+        console.warn('Falha no TTS do Gemini. Usando voz local do navegador.', error);
+        const started = speakWithBrowserVoice(textToSpeak, latestPatientMessage.id);
+        if (!started) {
+          setIsPatientSpeaking(false);
+        }
+      }
     };
-    utterance.onend = () => setIsPatientSpeaking(false);
-    utterance.onerror = () => {
-      setIsPatientSpeaking(false);
-      spokenPatientMessagesRef.current.delete(latestPatientMessage.id);
-    };
 
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.resume();
-    window.speechSynthesis.speak(utterance);
-  }, [visibleMessages, voiceEnabled, voiceSupported]);
+    speak();
+
+    return () => {
+      canceled = true;
+    };
+  }, [visibleMessages, voiceEnabled, voiceSupported, speakWithBrowserVoice, stopPatientVoice]);
 
   useEffect(() => {
     if (!initialCaseMessage) return;
@@ -498,8 +645,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 setVoiceEnabled((prev) => {
                   const next = !prev;
                   if (!next && voiceSupported) {
-                    window.speechSynthesis.cancel();
-                    setIsPatientSpeaking(false);
+                    stopPatientVoice();
                   }
                   return next;
                 });
