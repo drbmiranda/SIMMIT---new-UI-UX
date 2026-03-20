@@ -1,5 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
+import { getRuntimeEnv } from '../services/runtimeEnv';
 import LoadingSpinner from './LoadingSpinner';
 import loginArt from '../design-SIMMIT/MobileLOGIN.png';
 import logoMark from '../design-SIMMIT/logo.svg';
@@ -7,6 +8,8 @@ import arrowDownIcon from '../design-SIMMIT/arrow-down-01-round.svg';
 
 const WelcomeScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const { VITE_APP_URL } = getRuntimeEnv();
+  const productionAppUrl = (VITE_APP_URL || 'https://medsim-beta-775616705724.us-central1.run.app').replace(/\/$/, '');
   const [error, setError] = useState<string | null>(null);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
@@ -23,7 +26,7 @@ const WelcomeScreen: React.FC = () => {
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin,
+        redirectTo: import.meta.env.DEV ? 'http://localhost:3000' : productionAppUrl,
       },
     });
 
@@ -113,3 +116,4 @@ const WelcomeScreen: React.FC = () => {
 };
 
 export default WelcomeScreen;
+
