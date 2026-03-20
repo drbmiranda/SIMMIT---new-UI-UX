@@ -11,7 +11,7 @@ steps:
         'gcloud',
         'run',
         'deploy',
-        '${_SERVICE}',
+        '${_RUN_SERVICE}',
         '--image',
         '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$SHORT_SHA',
         '--region',
@@ -28,6 +28,7 @@ images:
 
 substitutions:
   _SERVICE: 'medsim-beta'
+  _RUN_SERVICE: 'medsim-beta'
   _IMAGE_NAME: 'medsim-beta'
   _REGION: 'us-central1'
   _AR_REPO: 'simmit-images'
