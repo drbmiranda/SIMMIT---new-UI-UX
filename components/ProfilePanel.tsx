@@ -1,8 +1,7 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+﻿import React, { useEffect, useState } from 'react';
 import { Profile } from '../types';
-import { StudentDashboard } from './StudentDashboard';
-import { GamificationState, loadGamificationState } from '../services/gamificationService';
+import StudentDashboard from './StudentDashboard';
+import { supabase } from '../services/supabaseClient';
 
 interface ProfilePanelProps {
   isOpen: boolean;
@@ -14,189 +13,211 @@ interface ProfilePanelProps {
   variant?: 'modal' | 'dock';
 }
 
+const AVATAR_STORAGE_KEY = 'simmit-profile-avatar';
+const PANEL_BACKGROUND = 'radial-gradient(265.82% 126.76% at 14.14% 0%, #F8FAFC 40.22%, #E3D1F7 61.67%, #D1F5E9 100%)';
+
 const ProfilePanel: React.FC<ProfilePanelProps> = ({
   isOpen,
   email,
   profile,
   onClose,
-  onStartTutorial,
   onLogout,
   variant = 'modal',
 }) => {
-  const displayName = profile?.full_name ?? 'Aluno(a)';
-  const firstName = displayName.split(' ')[0] || 'Aluno(a)';
-  const initials = displayName.split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase();
-
-  const [gamification, setGamification] = useState<GamificationState>(loadGamificationState());
+  const [displayName, setDisplayName] = useState(profile?.full_name ?? 'Aluno(a)');
+  const [draftName, setDraftName] = useState(profile?.full_name ?? 'Aluno(a)');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [draftAvatarUrl, setDraftAvatarUrl] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<GamificationState>).detail;
-      if (detail) setGamification(detail);
-    };
-    window.addEventListener('simmit-gamification-updated', handler);
-    return () => window.removeEventListener('simmit-gamification-updated', handler);
-  }, []);
+    const nextName = profile?.full_name ?? 'Aluno(a)';
+    setDisplayName(nextName);
+    setDraftName(nextName);
+  }, [profile?.full_name]);
 
-  const { level, progress, prestige, rank } = useMemo(() => {
-    const total = Math.max(gamification.medPoints, 0);
-    const nextLevel = Math.floor(total / 100) + 1;
-    let rankLabel = 'INTERNO';
-    if (total >= 300) rankLabel = 'PRECEPTOR';
-    else if (total >= 200) rankLabel = 'R2';
-    else if (total >= 100) rankLabel = 'R1';
-    return {
-      level: nextLevel,
-      progress: total % 100,
-      prestige: total,
-      rank: rankLabel,
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(AVATAR_STORAGE_KEY);
+      setAvatarUrl(stored);
+      setDraftAvatarUrl(stored);
+    } catch {
+      setAvatarUrl(null);
+      setDraftAvatarUrl(null);
+    }
+  }, [isOpen]);
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : null;
+      if (!result) return;
+      setDraftAvatarUrl(result);
     };
-  }, [gamification.medPoints]);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile?.id) return;
+    setIsSaving(true);
+    setSaveMessage(null);
+    try {
+      const { error } = await supabase.from('profiles').update({ full_name: draftName }).eq('id', profile.id);
+      if (error) throw error;
+      if (draftAvatarUrl) {
+        try {
+          localStorage.setItem(AVATAR_STORAGE_KEY, draftAvatarUrl);
+        } catch {
+          // no-op
+        }
+      }
+      setDisplayName(draftName);
+      setAvatarUrl(draftAvatarUrl);
+      setSaveMessage('Perfil atualizado com sucesso.');
+      setTimeout(() => setIsEditProfileOpen(false), 700);
+    } catch (err) {
+      setSaveMessage(err instanceof Error ? err.message : 'Não foi possível salvar o perfil.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleOpenEditProfile = () => {
+    setDraftName(displayName);
+    setDraftAvatarUrl(avatarUrl);
+    setSaveMessage(null);
+    setIsEditProfileOpen(true);
+  };
 
   const panelContent = (
-    <motion.div
-      initial={variant === 'modal' ? { opacity: 0, y: 24, scale: 0.98 } : false}
-      animate={variant === 'modal' ? { opacity: 1, y: 0, scale: 1 } : { opacity: 1 }}
-      exit={variant === 'modal' ? { opacity: 0, y: 16, scale: 0.98 } : { opacity: 0 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-[0_20px_60px_rgba(193,188,250,0.45)] backdrop-blur-xl aero-gloss text-[#003322]"
+    <div
+      className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl border border-white/60 shadow-[0_20px_60px_rgba(193,188,250,0.45)] backdrop-blur-xl text-[#003322]"
+      style={{ background: PANEL_BACKGROUND }}
     >
-      <div className="flex items-center justify-between gap-4 border-b border-white/60 bg-white/70 px-6 py-4">
+      <div className="flex items-center justify-between gap-4 border-b border-white/60 bg-white/65 px-6 py-4 backdrop-blur-xl">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-[#741cd9]">Perfil</p>
           <h3 className="text-lg font-semibold text-[#003322]">{displayName}</h3>
           <p className="text-sm text-[#003322]/70">Logado como: {email ?? 'não identificado'}</p>
         </div>
-        {variant === 'modal' && (
+        <div className="flex items-center gap-3">
           <button
-            onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-white/60 text-[#003322] hover:bg-white/80"
-            aria-label="Fechar perfil"
+            onClick={handleOpenEditProfile}
+            className="inline-flex items-center justify-center rounded-full border border-[#741cd9]/18 bg-white/82 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#741cd9] shadow-sm hover:bg-white"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            Editar perfil
           </button>
-        )}
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <section className="mb-6 rounded-3xl border border-white/70 bg-gradient-to-br from-white/85 via-white/70 to-[#c1bcfa]/30 p-5 shadow-[0_12px_40px_rgba(116,28,217,0.18)]">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-[#741cd9]/30 bg-white/80 text-xl font-semibold text-[#741cd9] shadow-[0_0_0_6px_rgba(116,28,217,0.12)] animate-soft-glow">
-                {initials || 'SM'}
-                <div className="absolute -bottom-2 right-0 rounded-full border border-[#741cd9]/30 bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#741cd9]">
-                  Lvl {level}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-[#741cd9]">Bem-vindo de volta</p>
-                <h4 className="text-xl font-semibold text-[#003322]">{firstName}, seu progresso está aqui.</h4>
-                <p className="text-sm text-[#003322]/70">Volte quando quiser: seus casos e conquistas ficam salvos.</p>
-              </div>
-            </div>
-            <div className="flex flex-col items-start gap-2 sm:items-end">
-              <div className="flex items-center gap-2 rounded-full border border-[#741cd9]/30 bg-white/80 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[#741cd9]">
-                {rank}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-[#741cd9]">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v8m-4-4h8m5 4a1 1 0 01-1 1H5a1 1 0 01-1-1V8a1 1 0 011-1h3l2-2h4l2 2h3a1 1 0 011 1v8z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-[#003322]/60">Prestígio clínico</p>
-                  <p className="text-2xl font-bold text-[#003322]">{prestige}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-[#003322]/60">
-              <span>Progresso para nível {level + 1}</span>
-              <span>{progress}%</span>
-            </div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/60">
-              <div
-                className="h-full bg-gradient-to-r from-[#741cd9] to-[#18cf91]"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
-            <div className="rounded-xl border border-white/60 bg-white/70 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[#003322]/60">Streak</p>
-              <p className="text-lg font-semibold text-[#003322]">{gamification.streakDays}</p>
-            </div>
-            <div className="rounded-xl border border-white/60 bg-white/70 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[#003322]/60">Foco</p>
-              <p className="text-lg font-semibold text-[#003322]">{gamification.focusEnergy}</p>
-            </div>
-            <div className="rounded-xl border border-white/60 bg-white/70 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[#003322]/60">Resiliência</p>
-              <p className="text-lg font-semibold text-[#003322]">{gamification.resiliencePoints}</p>
-            </div>
-            <div className="rounded-xl border border-white/60 bg-white/70 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[#003322]/60">NeuroGems</p>
-              <p className="text-lg font-semibold text-[#003322]">{gamification.neuroGems}</p>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
+          {variant === 'modal' && (
             <button
-              onClick={onStartTutorial}
-              className="inline-flex items-center justify-center rounded-full border border-white/60 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#003322] shadow-sm transition hover:bg-white"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-white/60 text-[#003322] hover:bg-white/80"
+              aria-label="Fechar perfil"
             >
-              Refazer tutorial
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
-          </div>
-        </section>
+          )}
+        </div>
+      </div>
 
-        <StudentDashboard profile={profile} onStartTutorial={onStartTutorial} />
+      <div className="flex-1 overflow-y-auto p-3 sm:p-5">
+        <StudentDashboard profile={profile ? { ...profile, full_name: displayName } : profile} avatarUrl={avatarUrl} />
 
-        <div className="mt-6 rounded-2xl border border-[#741cd9]/20 bg-white/60 p-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-[#741cd9]">Sessão</p>
-          <p className="mt-2 text-sm text-[#003322]/70">
-            Para encerrar sua sessão e sair do app, use o botão abaixo.
-          </p>
+        <div className="mt-6 rounded-[28px] border border-white/80 bg-white/72 p-6 shadow-[0_24px_70px_rgba(6,16,51,0.09)] backdrop-blur-xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#741cd9]">Sessão</p>
+          <h3 className="mt-2 text-2xl font-bold text-[#061033]">Encerrar sessão</h3>
+          <p className="mt-2 text-sm text-[#003322]/70">Use o botão abaixo para sair da sua conta com segurança.</p>
           <button
             onClick={onLogout}
-            className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-[#741cd9]/30 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#741cd9] shadow-sm transition hover:bg-white/80"
+            className="mt-5 inline-flex w-full items-center justify-center rounded-[18px] border border-[#741cd9]/30 bg-white px-4 py-4 text-sm font-semibold uppercase tracking-[0.24em] text-[#741cd9] shadow-sm transition hover:bg-[#f7f2ff]"
           >
-            Sair do app
+            Sair da conta
           </button>
         </div>
       </div>
-    </motion.div>
+
+      {isEditProfileOpen && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#003322]/18 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-[620px] rounded-[32px] border border-white/75 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(248,250,252,0.96)_40%,rgba(241,233,251,0.92)_74%,rgba(233,249,242,0.92)_100%)] p-7 shadow-[0_28px_90px_rgba(6,16,51,0.18)] backdrop-blur-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#741cd9]">Editar perfil</p>
+                <h3 className="mt-2 text-2xl font-bold text-[#061033]">Atualize sua foto e seu nome</h3>
+                <p className="mt-2 text-sm text-[#003322]/70">Pop-up oficial da dashboard para personalização do perfil.</p>
+              </div>
+              <button
+                onClick={() => setIsEditProfileOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-white/75 text-[#003322]"
+                aria-label="Fechar edição de perfil"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-7 grid gap-6 lg:grid-cols-[148px_minmax(0,1fr)] lg:items-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-[124px] w-[124px] overflow-hidden rounded-full border-[4px] border-white bg-[linear-gradient(135deg,#f5f0ff,#ffffff)] shadow-[0_20px_40px_rgba(116,28,217,0.14)]">
+                  {draftAvatarUrl ? <img src={draftAvatarUrl} alt="Avatar do perfil" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[#741cd9]">Foto</div>}
+                </div>
+                <label className="cursor-pointer rounded-full border border-[#741cd9]/24 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#741cd9] shadow-sm hover:bg-[#f7f2ff]">
+                  Trocar foto
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                </label>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b8798]">Nome exibido</label>
+                  <input
+                    type="text"
+                    value={draftName}
+                    onChange={(event) => setDraftName(event.target.value)}
+                    className="mt-2 w-full rounded-[20px] border border-white/85 bg-white/92 px-4 py-3.5 text-base text-[#061033] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] focus:border-[#741cd9]/40"
+                    placeholder="Seu nome completo"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b8798]">E-mail</label>
+                  <div className="mt-2 rounded-[20px] border border-white/85 bg-[#f8fbff] px-4 py-3.5 text-sm text-[#003322]/72">{email ?? 'não identificado'}</div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={isSaving || !draftName.trim()}
+                    className="inline-flex items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#4d5d8f_0%,#5d36d1_45%,#31c9a3_100%)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_34px_rgba(93,54,209,0.22)] disabled:opacity-60"
+                  >
+                    {isSaving ? 'Salvando...' : 'Salvar alterações'}
+                  </button>
+                  <button
+                    onClick={() => setIsEditProfileOpen(false)}
+                    className="inline-flex items-center justify-center rounded-[18px] border border-white/85 bg-white px-5 py-3.5 text-sm font-semibold text-[#061033] shadow-sm"
+                  >
+                    Cancelar
+                  </button>
+                  {saveMessage && <span className="text-sm text-[#003322]/72">{saveMessage}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 
-  if (variant === 'dock') {
-    return panelContent;
-  }
+  if (variant === 'dock') return panelContent;
+  if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-40 flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <button
-            className="absolute inset-0 bg-[#003322]/40 backdrop-blur-sm"
-            aria-label="Fechar perfil"
-            onClick={onClose}
-          />
-          <div className="relative z-10 h-[90vh] w-[95vw] max-w-5xl">
-            {panelContent}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div className="fixed inset-0 z-40 flex items-center justify-center">
+      <button className="absolute inset-0 bg-[#003322]/40 backdrop-blur-sm" aria-label="Fechar perfil" onClick={onClose} />
+      <div className="relative z-10 h-[94vh] w-[96vw] max-w-6xl">{panelContent}</div>
+    </div>
   );
 };
 

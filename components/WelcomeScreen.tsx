@@ -1,231 +1,115 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+﻿import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import LoadingSpinner from './LoadingSpinner';
-import SimmitLogo from './SimmitLogo';
+import loginArt from '../design-SIMMIT/MobileLOGIN.png';
+import logoMark from '../design-SIMMIT/logo.svg';
+import arrowDownIcon from '../design-SIMMIT/arrow-down-01-round.svg';
 
 const WelcomeScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
 
   const handleGoogleLogin = async () => {
     if (!hasAcceptedTerms) {
       setError('Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.');
       return;
     }
+
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
+
+    const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: (import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin),
+        redirectTo: import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin,
       },
     });
 
-    if (error) {
-      setError(error.message);
+    if (signInError) {
+      setError(signInError.message);
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center px-4 py-8 text-white sm:px-8">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="simmit-orb absolute -top-20 left-6 h-40 w-40 rounded-full" />
-        <div className="simmit-orb orb-delay absolute bottom-10 right-10 h-48 w-48 rounded-full" />
-        <div className="simmit-scanline absolute left-0 top-1/3 h-[2px] w-full" />
-      </div>
-
-      <div className="relative grid w-full max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <motion.section
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="simmit-hero relative overflow-hidden rounded-3xl px-6 py-10 sm:px-10 sm:py-12"
-        >
-          <SimmitLogo
-            size="lg"
-            showBadge
-            subtitle="Treino clínico com foco em performance e evolução real."
-          />
-
-          <div className="mt-10 max-w-xl">
-            <p className="text-lg text-[#003322] sm:text-xl">
-              Treine raciocínio clínico com simulações intensas, feedback imediato e uma jornada de
-              evolução que parece jogo.
-            </p>
-            <p className="mt-4 text-sm text-[#003322]/70">
-              Pensado para mobile. Responsivo. Focado em performance. Pronto para o seu próximo plantão.
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl  bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Simulação</p>
-              <p className="mt-2 text-lg font-semibold text-white">Paciente reativo em tempo real</p>
-              <p className="mt-2 text-sm text-[#003322]/70">
-                Aprenda sob pressão com respostas clínicas realistas e progressão contínua.
-              </p>
+    <div className="relative min-h-[100dvh] overflow-hidden">
+      {isPolicyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm" onClick={() => setIsPolicyModalOpen(false)}>
+          <div className="w-full max-w-xl rounded-3xl border border-white/70 bg-white p-6 text-[#003322] shadow-[0_24px_64px_rgba(5,9,24,0.35)]" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Termos de uso e privacidade">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#741cd9]/80">Documentos legais</p>
+                <h2 className="mt-2 text-xl font-bold text-slate-900">Termos de uso e política de privacidade</h2>
+              </div>
+              <button onClick={() => setIsPolicyModalOpen(false)} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600" aria-label="Fechar">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
-            <div className="rounded-2xl  bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Progresso</p>
-              <p className="mt-2 text-lg font-semibold text-white">Vitórias visuais, foco no acerto</p>
-              <p className="mt-2 text-sm text-[#003322]/70">
-                Cada decisão certa gera evolução, feedback e celebração.
-              </p>
+
+            <div className="mt-4 max-h-[50vh] space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <p>O SIMMIT é uma plataforma de simulação clínica com finalidade educacional.</p>
+              <p>As respostas geradas por IA não substituem conduta médica para pacientes reais.</p>
+              <p>Coletamos dados de conta e desempenho para personalizar a experiência, em conformidade com a LGPD.</p>
+              <p>Você pode solicitar revisão, exportação ou exclusão dos seus dados mediante contato com a equipe da plataforma.</p>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setIsPolicyModalOpen(false)} className="rounded-xl bg-[#741CD9] px-4 py-2 text-sm font-semibold text-white">Entendi</button>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="mt-8 flex flex-wrap items-center gap-3 text-xs text-[#003322]/70">
-            <span className="rounded-full  bg-white/5 px-3 py-1">IA responsiva</span>
-            <span className="rounded-full  bg-white/5 px-3 py-1">Feedback guiado</span>
-            <span className="rounded-full  bg-white/5 px-3 py-1">Modo emergência</span>
-          </div>
-        </motion.section>
-
-        <motion.aside
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut', delay: 0.05 }}
-          className="simmit-card rounded-3xl px-6 py-8 sm:px-8"
-        >
-          <h2 className="text-2xl font-semibold text-white">Acesso seguro</h2>
-          <p className="mt-2 text-sm text-[#003322]/70">
-            Conecte sua conta para salvar progresso, registrar performance e liberar as simulações.
-          </p>
-
-          <button
-            onClick={handleGoogleLogin}
-            disabled={loading || !hasAcceptedTerms}
-            className="simmit-button mt-6 flex w-full items-center justify-center gap-3 rounded-xl px-6 py-4 text-sm font-semibold text-white transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-[#741cd9]/30 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? (
-              <LoadingSpinner size="sm" color="text-white" />
-            ) : (
-              <svg className="h-5 w-5" viewBox="0 0 48 48">
-                <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.42-4.55H24v8.51h12.8c-.57 3.39-2.21 6.22-4.78 8.12l7.63 5.91c4.47-4.14 7.07-10.12 7.07-17.99z"></path>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.63-5.91c-2.11 1.41-4.8 2.26-7.98 2.26-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                <path fill="none" d="M0 0h48v48H0z"></path>
-              </svg>
-            )}
-            <span>{loading ? 'Aguarde...' : 'Entrar com Google'}</span>
-          </button>
-
-          <div className="mt-6 rounded-2xl  bg-white/5 p-4">
-            <h3 className="text-sm font-semibold text-white">Termos de Uso e Política de Privacidade</h3>
-            <div className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-3 text-xs leading-relaxed text-[#003322] no-scrollbar">
-              <p>
-                Bem-vindo ao SIMMIT, uma plataforma de simulação clínica mobile de propriedade da Healthtech BRASIL.
-                Ao utilizar nossos serviços, você concorda com os termos abaixo descritos.
-              </p>
-              <div>
-                <p className="font-semibold text-white">1. Objeto e Funcionalidade</p>
-                <p>
-                  O SIMMIT é uma ferramenta de suporte educacional baseada em Inteligência Artificial, destinada ao
-                  treinamento de raciocínio clínico e tomada de decisão.
-                </p>
-                <p className="mt-2">
-                  Finalidade Educativa: O SIMMIT é um simulador. Os resultados, diagnósticos e condutas sugeridos pela IA
-                  dentro do ambiente de simulação têm caráter estritamente educativo e de treinamento.
-                </p>
-                <p className="mt-2">
-                  Isenção de Responsabilidade Clínica: A plataforma não deve ser utilizada para diagnóstico ou tratamento
-                  de pacientes reais. A decisão clínica final em ambientes reais é de responsabilidade exclusiva do
-                  profissional médico devidamente registrado.
-                </p>
-              </div>
-              <div>
-                <p className="font-semibold text-white">2. Propriedade Intelectual e Bases de Dados</p>
-                <p>
-                  O SIMMIT utiliza algoritmos proprietários e bases de dados de terceiros (literatura médica, diretrizes e
-                  protocolos científicos) para gerar cenários realistas.
-                </p>
-                <p className="mt-2">
-                  A Healthtech BRASIL detém total controle sobre a curadoria e o processamento desses dados dentro da
-                  plataforma.
-                </p>
-                <p className="mt-2">
-                  O usuário não adquire qualquer direito de propriedade sobre o conteúdo, código ou lógica de
-                  funcionamento do SIMMIT.
-                </p>
-              </div>
-              <div>
-                <p className="font-semibold text-white">3. Privacidade e Proteção de Dados (LGPD)</p>
-                <p className="mt-2">
-                  Coleta de Dados: Coletamos informações de cadastro (nome, e-mail, ocupação) e dados de performance
-                  (erros, acertos e tempo de resposta) para fins de personalização e melhoria da IA.
-                </p>
-                <p className="mt-2">
-                  Desidentificação: Caso ocorra qualquer compartilhamento de dados agregados com parceiros tecnológicos
-                  ou de pesquisa para o aprimoramento da plataforma, todos os dados serão obrigatoriamente
-                  desidentificados. Nenhuma informação pessoal sensível será compartilhada de forma identificável.
-                </p>
-                <p className="mt-2">
-                  Gestão de Dados: O usuário tem total controle sobre seus dados. A qualquer momento, você pode solicitar
-                  a alteração ou a remoção definitiva de seus dados da nossa base de dados enviando um e-mail para:
-                  drbmiranda@healthtechbr.io.
-                </p>
-              </div>
-              <div>
-                <p className="font-semibold text-white">4. Condições do Programa Pioneer (Beta)</p>
-                <p className="mt-2">
-                  Durante a fase Beta (Pioneer), o acesso pode ser oferecido de forma gratuita por tempo limitado.
-                </p>
-                <p className="mt-2">
-                  Encerramento do Acesso Gratuito: O período de gratuidade é temporário e será encerrado na data estipulada
-                  pela administração (previsto para a Quarta-feira de Cinzas). Após este período, a continuidade do acesso
-                  estará sujeita aos planos de assinatura vigentes.
-                </p>
-                <p className="mt-2">
-                  Estabilidade: Por se tratar de uma versão Beta, a plataforma pode passar por manutenções e ajustes
-                  técnicos sem aviso prévio.
-                </p>
-              </div>
-              <div>
-                <p className="font-semibold text-white">5. Responsabilidades do Usuário</p>
-                <p className="mt-2">Ao utilizar o SIMMIT, o usuário compromete-se a:</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>Não realizar engenharia reversa na plataforma.</li>
-                  <li>Não utilizar robôs ou scripts para extração de dados.</li>
-                  <li>Fornecer informações verídicas no cadastro.</li>
-                </ul>
-              </div>
-              <div>
-                <p className="font-semibold text-white">6. Foro</p>
-                <p className="mt-2">
-                  Para dirimir quaisquer controvérsias oriundas deste termo, as partes elegem o foro da Comarca de São
-                  Paulo - SP.
-                </p>
-              </div>
+      <div className="mx-auto grid min-h-[100dvh] w-full max-w-[1280px] grid-cols-1 bg-[#f5f5f5] md:grid-cols-[1.35fr_1fr]">
+        <section className="relative hidden overflow-hidden md:block">
+          <img src={loginArt} alt="SIMMIT login" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(30,27,75,0.55),rgba(49,46,129,0.35),rgba(34,211,238,0.3))]" />
+          <div className="relative flex h-full flex-col justify-between p-8 lg:p-10">
+            <img src={logoMark} alt="SIMMIT" className="h-12 w-auto" />
+            <div className="rounded-3xl border border-white/30 bg-slate-900/40 p-6 text-white backdrop-blur-lg">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">Você sabia?</p>
+              <h2 className="mt-2 font-title text-3xl">SIMMIT AI QUEST</h2>
+              <p className="mt-3 max-w-xl text-sm text-white/90 lg:text-base">Estudantes de medicina que treinam com simulação de forma frequente tendem a melhorar a confiança e o raciocínio clínico estruturado para estações de OSCE.</p>
             </div>
           </div>
+        </section>
 
-          <label className="mt-4 flex items-start gap-3 text-left text-xs text-[#003322]">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 rounded border-white/30 bg-white/10 text-[#741cd9] focus:ring-2 focus:ring-[#741cd9]/60"
-              checked={hasAcceptedTerms}
-              onChange={(event) => {
-                setHasAcceptedTerms(event.target.checked);
-                if (event.target.checked) {
-                  setError(null);
-                }
-              }}
-            />
-            <span>
-              Li e aceito os Termos de Uso e a Política de Privacidade do SIMMIT.
-            </span>
-          </label>
+        <section className="relative flex items-center justify-center px-4 py-8 sm:px-6">
+          <div className="w-full max-w-md rounded-3xl border border-white/70 bg-white/92 p-6 shadow-[0_24px_64px_rgba(5,9,24,0.22)] backdrop-blur-lg sm:p-7">
+            <div className="flex items-center justify-between gap-3"><img src={logoMark} alt="SIMMIT" className="h-9 w-auto md:hidden" /></div>
+            <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Bem-vindo ao SIMMIT AI QUEST</h1>
+            <p className="mt-2 text-sm text-slate-600">Entre com Google para salvar progresso, pontuação e histórico de simulações.</p>
 
-          {error && <p className="mt-4 text-xs text-red-300">{`Erro: ${error}`}</p>}
-        </motion.aside>
+            <button onClick={handleGoogleLogin} disabled={loading || !hasAcceptedTerms} className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-[#741CD9] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(116,28,217,0.36)] focus:outline-none focus:ring-4 focus:ring-[#741cd9]/30 disabled:cursor-not-allowed disabled:opacity-60">
+              {loading ? <LoadingSpinner size="sm" color="text-white" /> : (
+                <svg className="h-5 w-5" viewBox="0 0 48 48" aria-hidden="true">
+                  <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                  <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.42-4.55H24v8.51h12.8c-.57 3.39-2.21 6.22-4.78 8.12l7.63 5.91c4.47-4.14 7.07-10.12 7.07-17.99z" />
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                  <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.63-5.91c-2.11 1.41-4.8 2.26-7.98 2.26-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                </svg>
+              )}
+              <span>{loading ? 'Entrando...' : 'Entrar com Google'}</span>
+            </button>
+
+            <button type="button" onClick={() => setIsPolicyModalOpen(true)} className="mt-4 inline-flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm font-semibold text-slate-700">
+              <span>Ver termos de uso e privacidade</span>
+              <img src={arrowDownIcon} alt="" className="h-4 w-4" />
+            </button>
+
+            <label className="mt-4 flex items-start gap-3 text-left text-xs text-slate-700">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#741cd9] focus:ring-2 focus:ring-[#741cd9]/50" checked={hasAcceptedTerms} onChange={(event) => { setHasAcceptedTerms(event.target.checked); if (event.target.checked) setError(null); }} />
+              <span>Li e aceito os <button type="button" onClick={() => setIsPolicyModalOpen(true)} className="font-semibold text-[#741cd9] underline">termos de uso e política de privacidade</button> do SIMMIT.</span>
+            </label>
+
+            {error && <p className="mt-3 text-xs font-medium text-red-600">Erro: {error}</p>}
+          </div>
+        </section>
       </div>
     </div>
   );
 };
 
 export default WelcomeScreen;
-
