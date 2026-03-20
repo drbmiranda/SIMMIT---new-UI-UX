@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="danger">
+<path id="Vector" d="M9 6.75V10.5" stroke="var(--stroke-0, #292D32)" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M9 16.0575H4.455C1.8525 16.0575 0.765 14.1975 2.025 11.925L4.365 7.71L6.57 3.75C7.905 1.3425 10.095 1.3425 11.43 3.75L13.635 7.7175L15.975 11.9325C17.235 14.205 16.14 16.065 13.545 16.065H9V16.0575Z" stroke="var(--stroke-0, #292D32)" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M8.99588 12.75H9.00262" stroke="var(--stroke-0, #292D32)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<g id="Vector_4" opacity="0">
+</g>
+</g>
+</svg>

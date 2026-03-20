@@ -1,12 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-import { AnimatePresence, motion } from 'framer-motion';
 
 import { Chat } from '@google/genai';
-
-import { gsap } from 'gsap';
-
-import { Flip } from 'gsap/Flip';
 
 import { Session } from '@supabase/supabase-js';
 
@@ -40,6 +35,7 @@ import FlashcardPdfView from './components/FlashcardPdfView';
 import IntensivoView from './components/EnareView';
 
 import { initializeChat, sendMessageToGemini, generateFeedback, generateOsceCase, recreateChatFromHistory } from './services/geminiService';
+import { decodeMojibakeText, sanitizeText as sanitizeSharedText } from './utils/text';
 
 import LoadingSpinner from './components/LoadingSpinner';
 
@@ -55,9 +51,6 @@ import { GamificationState, applyDailyLoginReward, applyGamificationReward, load
 
 
 
-gsap.registerPlugin(Flip);
-
-
 
 const LOCAL_STORAGE_KEY = 'simmit-app-state';
 
@@ -66,25 +59,25 @@ const TUTORIAL_STORAGE_KEY = 'simmit-tutorial-complete';
 const TUTORIAL_SUBJECT: MedicalSubject = 'Cl?nica M?dica';
 
 const TUTORIAL_CASE: OsceCaseData = {
-  cenarioDoAluno: "Paciente de 45 anos chega ao pronto atendimento com dor no peito h? 2 horas, sem diagn?stico definido.",
+  cenarioDoAluno: 'Paciente de 45 anos chega ao pronto atendimento com dor no peito h? 2 horas, sem diagn?stico definido.',
   tarefasDoAluno: [
-    "Apresentar-se e confirmar a identidade do paciente.",
-    "Investigar a queixa principal (in?cio, localiza??o, intensidade, irradia??o, fatores de melhora/piora).",
-    "Explorar sintomas associados e antecedentes relevantes.",
-    "Perguntar sobre medica??es em uso, alergias e h?bitos (tabagismo, ?lcool).",
-    "Solicitar exame f?sico e exames complementares quando apropriado.",
-    "Encerrar com hip?tese diagn?stica e plano inicial (sem precisar estar correto no tutorial)."
+    'Apresentar-se e confirmar a identidade do paciente.',
+    'Investigar a queixa principal (in?cio, localiza??o, intensidade, irradia??o, fatores de melhora/piora).',
+    'Explorar sintomas associados e antecedentes relevantes.',
+    'Perguntar sobre medica??es em uso, alergias e h?bitos (tabagismo, ?lcool).',
+    'Solicitar exame f?sico e exames complementares quando apropriado.',
+    'Encerrar com hip?tese diagn?stica e plano inicial (sem precisar estar correto no tutorial).',
   ],
-  instrucoesDoPaciente: "Voc? ? Jo?o Carlos, 45 anos, motorista. Queixa principal: dor no peito iniciada h? cerca de 2 horas, em aperto, 8/10, irradiando para bra?o esquerdo, piora com esfor?o, melhora parcial com repouso. Relata suor frio e n?usea leve. Nega febre. Antecedentes: hipertens?o h? 5 anos, sem diabetes. Medica??es: losartana 50 mg/dia (usa irregularmente). Alergias: nega. H?bitos: tabagista (1 ma?o/dia), etilismo social. Hist?rico familiar: pai com infarto aos 52 anos. Se perguntado sobre diagn?stico ou conduta, diga que n?o sabe e que isso deve ser decidido pelo m?dico.",
+  instrucoesDoPaciente: 'Voc? ? Jo?o Carlos, 45 anos, motorista. Queixa principal: dor no peito iniciada h? cerca de 2 horas, em aperto, 8/10, irradiando para bra?o esquerdo, piora com esfor?o, melhora parcial com repouso. Relata suor frio e n?usea leve. Nega febre. Antecedentes: hipertens?o h? 5 anos, sem diabetes. Medica??es: losartana 50 mg/dia (usa irregularmente). Alergias: nega. H?bitos: tabagista (1 ma?o/dia), etilismo social. Hist?rico familiar: pai com infarto aos 52 anos. Se perguntado sobre diagn?stico ou conduta, diga que n?o sabe e que isso deve ser decidido pelo m?dico.',
   criteriosDeAvaliacao: [
-    "Apresentou-se e estabeleceu comunica??o clara.",
-    "Investigou caracter?sticas da dor (PQRST).",
-    "Perguntou sobre sintomas associados.",
-    "Investigou antecedentes e fatores de risco.",
-    "Perguntou sobre medica??es e alergias.",
-    "Solicitou exame f?sico ou exames quando pertinente.",
-    "Organizou um racioc?nio final (mesmo que simples)."
-  ]
+    'Apresentou-se e estabeleceu comunica??o clara.',
+    'Investigou caracter?sticas da dor (PQRST).',
+    'Perguntou sobre sintomas associados.',
+    'Investigou antecedentes e fatores de risco.',
+    'Perguntou sobre medica??es e alergias.',
+    'Solicitou exame f?sico ou exames quando pertinente.',
+    'Organizou um racioc?nio final (mesmo que simples).',
+  ],
 };
 
 const normalizeCommandText = (text: string) =>
@@ -97,13 +90,13 @@ const normalizeCommandText = (text: string) =>
     .trim();
 
 const EXAM_PROMPT_HINTS: Partial<Record<SimmitCommandKey, string>> = {
-  examGeneral: 'O usu?rio est? avaliando o estado geral agora. Descreva BEG/REG/Mau, f?cies, postura, consci?ncia e sinais evidentes.',
-  examVitals: 'O usu?rio est? checando sinais vitais agora. Forne?a PA, FC, FR, Temp, SatO2 e dor, coerentes com o caso.',
+  examGeneral: 'O usu?rio est? avaliando o estado geral agora. Descreva BEG/REG/mau estado geral, f?cies, postura, consci?ncia e sinais evidentes.',
+  examVitals: 'O usu?rio est? checando sinais vitais agora. Forne?a PA, FC, FR, temperatura, SatO2 e dor, coerentes com o caso.',
   examInspection: 'O usu?rio est? realizando a inspe??o agora. Descreva achados visuais est?ticos e din?micos do segmento relevante.',
   examPalpation: 'O usu?rio est? realizando a palpa??o agora. Descreva temperatura, dor, massas, edema, fr?mitos e profundidade.',
   examPercussion: 'O usu?rio est? realizando a percuss?o agora. Descreva timpanismo, macicez ou claro pulmonar conforme o caso.',
   examAuscultation: 'O usu?rio est? realizando a ausculta agora. Descreva sons fisiol?gicos e advent?cios coerentes com o caso.',
-  examPhysical: 'O usu?rio solicitou exame f?sico completo. Descreva achados relevantes e coerentes com o caso.'
+  examPhysical: 'O usu?rio solicitou exame fÃ­sico completo. Descreva achados relevantes e coerentes com o caso.'
 };
 
 
@@ -131,30 +124,7 @@ const isUserLostMessage = (text: string) => {
 
 
 
-const decodeMojibakeText = (input: string): string => {
-  let output = input;
-  const mojibakePattern = /[\\u00C3\\u00C2\\uFFFD]/g;
-  const score = (value: string) => ((value.match(mojibakePattern) || []).length);
-
-  for (let i = 0; i < 3; i++) {
-    if (!mojibakePattern.test(output)) break;
-    try {
-      const candidate = decodeURIComponent(escape(output));
-      if (score(candidate) < score(output)) {
-        output = candidate;
-      } else {
-        break;
-      }
-    } catch {
-      break;
-    }
-  }
-
-  return output;
-};
-
-const sanitizeMessageText = (text: string) =>
-  decodeMojibakeText(text.replace(/\*/g, '').replace(/\s{3,}/g, '  ').trim());
+const sanitizeMessageText = (text: string) => sanitizeSharedText(text);
 
 const getSimmitCommand = (text: string): SimmitCommandKey | null => {
   const normalized = normalizeCommandText(text);
@@ -632,7 +602,7 @@ export const App = () => {
 
           sender: 'SIMMIT',
 
-          text: `SIMMIT: Lembrete r?pido: voc? ? o m?dico e a IA ? o paciente. Para avan?ar, use o menu de Exame F?sico ou Solicita??es.`,
+          text: sanitizeMessageText('SIMMIT: Lembrete rápido: você é o médico e a IA é o paciente. Para avançar, use o painel de procedimentos para exame físico ou solicitações.'),
 
           timestamp: Date.now(),
 
@@ -682,16 +652,7 @@ export const App = () => {
 
 
 
-  const captureLogoFlip = () => {
-
-    const state = Flip.getState('[data-flip-id="simmit-logo"]');
-
-    (window as any).__simmitFlipState = state;
-
-  };
-
-
-
+  
   const handleRoleSelection = (role: UserRole) => {
 
     setState(prev => ({ ...prev, userRole: role, selectedSubject: null, isGameStarted: false, gameLog: [], activeActivity: null, rewardedForCurrentCase: false, isTutorialActive: false }));
@@ -740,7 +701,6 @@ export const App = () => {
 
       setState(prev => ({ ...prev, selectedSubject: subject }));
 
-      captureLogoFlip();
 
       setShowStudentWelcomeModal(true);
 
@@ -809,23 +769,14 @@ export const App = () => {
 
 
   const getCaseTitles = (subject: MedicalSubject): string[] => {
-
-    switch (subject) {
-
-      case 'Cl?nica M?dica': return CLINICA_MEDICA_CASE_TITLES;
-
-      case 'Pediatria': return PEDIATRIA_CASE_TITLES;
-
-      case 'Cl?nica Cir?rgica': return CIRURGIA_CASE_TITLES;
-
-      case 'Ginecologia e Obstetr?cia': return GINECOLOGIA_OBSTETRICIA_CASE_TITLES;
-
-      case 'Medicina Preventiva': return MEDICINA_PREVENTIVA_CASE_TITLES;
-
+    switch (normalizeCommandText(subject)) {
+      case 'CLINICA MEDICA': return CLINICA_MEDICA_CASE_TITLES;
+      case 'PEDIATRIA': return PEDIATRIA_CASE_TITLES;
+      case 'CLINICA CIRURGICA': return CIRURGIA_CASE_TITLES;
+      case 'GINECOLOGIA E OBSTETRICIA': return GINECOLOGIA_OBSTETRICIA_CASE_TITLES;
+      case 'MEDICINA PREVENTIVA': return MEDICINA_PREVENTIVA_CASE_TITLES;
       default: return [];
-
     }
-
   };
 
 
@@ -964,7 +915,7 @@ ${osceCaseData.criteriosDeAvaliacao.join('\n')}
 
         const scenarioMatch = fullOsceCase.match(STUDENT_SCENARIO_REGEX);
 
-        const studentScenario = scenarioMatch ? scenarioMatch[1].trim() : "Cen?rio n?o encontrado.";
+        const studentScenario = scenarioMatch ? scenarioMatch[1].trim() : "Cen?rio nÃ£o encontrado.";
 
         const sanitizedScenario = sanitizeMessageText(studentScenario);
 
@@ -977,7 +928,7 @@ ${osceCaseData.criteriosDeAvaliacao.join('\n')}
             sender: 'SIMMIT',
 
             text: `SIMMIT: Caso Clinico Inicial
-Voc? ? o m?dico. A IA ? o paciente.
+
 ${sanitizedScenario}`,
 
             timestamp: Date.now(),
@@ -1078,7 +1029,7 @@ ${sanitizedScenario}`,
 
         const criteriaMatch = state.currentOsceCase.match(OSCE_CRITERIA_REGEX);
 
-        const osceCriteria = criteriaMatch ? criteriaMatch[1].trim() : "Crit?rios de avalia??o n?o encontrados.";
+        const osceCriteria = criteriaMatch ? criteriaMatch[1].trim() : "Crit?rios de avalia??o nÃ£o encontrados.";
 
 
 
@@ -1272,7 +1223,7 @@ ${sanitizedScenario}`,
 
           sender: 'SIMMIT',
 
-          text: `SIMMIT: Voc? ? o m?dico nesta consulta e a IA ? o paciente. Fale diretamente com o paciente e, quando precisar, use o menu de Exame F?sico e Solicita??es. Para feedback, use ${SIMMIT_COMMANDS.closeCase}.`,
+          text: `SIMMIT: Você é o médico nesta consulta e a IA é o paciente. Fale diretamente com o paciente e, quando precisar, use o painel de procedimentos. Para feedback, use ${SIMMIT_COMMANDS.closeCase}.`,
 
           timestamp: Date.now() + 1,
 
@@ -1336,7 +1287,7 @@ ${sanitizedScenario}`,
 
         sender: 'SIMMIT',
 
-        text: `SIMMIT: Voc? ? o m?dico; a IA ? o paciente. Para solicitar a??es cl?nicas, use o menu de Exame F?sico e Solicita??es.
+        text: `SIMMIT: Você é o médico; a IA é o paciente. Para solicitar ações clínicas, use o painel de procedimentos.
 Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
         timestamp: Date.now() + 1,
@@ -1364,7 +1315,7 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
       examPalpation: 'Palpa??o',
       examPercussion: 'Percuss?o',
       examAuscultation: 'Ausculta',
-      examPhysical: 'Exame f?sico completo',
+      examPhysical: 'Exame fÃ­sico completo',
       labResults: 'Resultados de exames laboratoriais',
       imageResults: 'Resultados de exames de imagem',
     };
@@ -1479,7 +1430,7 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
       const patientText = sanitizeMessageText(processedText);
 
-      const finalPatientText = patientText || "Desculpe, n?o consegui responder agora. Pode repetir?";
+      const finalPatientText = patientText || "Desculpe, não consegui responder agora. Pode repetir?";
 
 
 
@@ -1627,7 +1578,6 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
       activeActivity: 'simulation',
       isTutorialActive: true,
     }));
-    captureLogoFlip();
     setShowStudentWelcomeModal(true);
   };
 
@@ -1809,8 +1759,6 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
   const showProfileDock = state.userRole === 'aluno' && !isChatView;
   const showProfileModal = showProfilePanel;
 
-  const pageKey = session ? (userProfile ? `${state.userRole}-${state.selectedSubject ?? 'subject'}-${state.activeActivity ?? 'menu'}-${showProfilePanel}` : 'onboarding') : 'welcome';
-
 
 
   // The main container conditionally applies the login background
@@ -1835,7 +1783,7 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
     </div>
 
-          <motion.main className="flex-grow" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }}><WelcomeScreen /></motion.main>
+          <main className="flex-grow"><WelcomeScreen /></main>
 
       </div>
 
@@ -1861,7 +1809,7 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
     </div>
 
-          <motion.main className="flex-grow" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }}><OnboardingForm onComplete={checkUserProfile} /></motion.main>
+          <main className="flex-grow"><OnboardingForm onComplete={checkUserProfile} /></main>
 
       </div>
 
@@ -2012,32 +1960,10 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
       </header>
 
-      <main className="flex-grow">
-
-        <AnimatePresence mode="wait">
-
-          <motion.div
-
-            key={pageKey}
-
-            initial={{ opacity: 0, y: 16 }}
-
-            animate={{ opacity: 1, y: 0 }}
-
-            exit={{ opacity: 0, y: -16 }}
-
-            transition={{ duration: 0.4, ease: "easeOut" }}
-
-            className="h-full"
-
-          >
-
-            {renderContent()}
-
-          </motion.div>
-
-        </AnimatePresence>
-
+            <main className="flex-grow">
+        <div className="h-full">
+          {renderContent()}
+        </div>
       </main>
 
       <ReportErrorModal 
@@ -2052,7 +1978,7 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
       {reportConfirmation && (
 
-          <div className="absolute bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in-out">
+          <div className="absolute bottom-4 right-4 rounded-lg bg-green-600 px-4 py-2 text-white shadow-lg">
 
               {reportConfirmation}
 
@@ -2064,7 +1990,7 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center">
 
-          <div className="animate-float-up-fade rounded-full border border-white/20 bg-slate-900/70 px-6 py-3 text-lg font-semibold text-teal-200 shadow-xl backdrop-blur">
+          <div className="rounded-full border border-white/20 bg-slate-900/70 px-6 py-3 text-lg font-semibold text-teal-200 shadow-xl">
 
             {medPointsToast}
 
@@ -2079,6 +2005,8 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
   );
 
 };
+
+
 
 
 

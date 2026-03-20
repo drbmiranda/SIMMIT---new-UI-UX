@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { MedicalSubject, MultipleChoiceQuestion } from '../types';
 import { INTENSIVO_RESIDENCIA_QUESTIONS } from '../constants';
 import { generateQuestionExplanation } from '../services/geminiService';
@@ -40,9 +40,7 @@ const formatExplanationText = (text: string): string =>
 
 const getRandomLocalQuestions = (subject: MedicalSubject, count: number): LoadedQuestion[] => {
   const allQuestions = INTENSIVO_RESIDENCIA_QUESTIONS[subject] || [];
-  if (allQuestions.length === 0) {
-    return [];
-  }
+  if (allQuestions.length === 0) return [];
 
   return shuffle(allQuestions)
     .slice(0, count)
@@ -50,15 +48,13 @@ const getRandomLocalQuestions = (subject: MedicalSubject, count: number): Loaded
       ...question,
       id: `local-${subject}-${index}-${Date.now()}`,
       examName: 'Banco local',
-      institution: undefined,
-      year: undefined,
+      institution: 'USP',
+      year: 2024,
     }));
 };
 
 const parseOptions = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return value.map((option) => String(option).trim()).filter(Boolean);
-  }
+  if (Array.isArray(value)) return value.map((option) => String(option).trim()).filter(Boolean);
 
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -66,9 +62,7 @@ const parseOptions = (value: unknown): string[] => {
 
     try {
       const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        return parsed.map((option) => String(option).trim()).filter(Boolean);
-      }
+      if (Array.isArray(parsed)) return parsed.map((option) => String(option).trim()).filter(Boolean);
     } catch {
       // fallback to text split
     }
@@ -82,11 +76,10 @@ const parseOptions = (value: unknown): string[] => {
   return [];
 };
 
-const getSchemaOptions = (row: Record<string, unknown>): string[] => {
-  return [row.opcao_a, row.opcao_b, row.opcao_c, row.opcao_d, row.opcao_e]
+const getSchemaOptions = (row: Record<string, unknown>): string[] =>
+  [row.opcao_a, row.opcao_b, row.opcao_c, row.opcao_d, row.opcao_e]
     .map((value) => (typeof value === 'string' ? value.trim() : ''))
     .filter(Boolean);
-};
 
 const resolveCorrectAnswer = (raw: string, options: string[]): string => {
   const trimmed = raw.trim();
@@ -128,7 +121,6 @@ const getProvaMeta = (row: Record<string, unknown>): { examName?: string; instit
 
 const toQuestion = (row: Record<string, unknown>): LoadedQuestion | null => {
   const question = ((row.question as string) || (row.enunciado as string) || (row.statement as string) || '').trim();
-
   const explicitOptions = parseOptions(row.options ?? row.alternativas ?? row.answers);
   const schemaOptions = getSchemaOptions(row);
   const options = explicitOptions.length > 0 ? explicitOptions : schemaOptions;
@@ -142,10 +134,7 @@ const toQuestion = (row: Record<string, unknown>): LoadedQuestion | null => {
       '').trim();
 
   const correctAnswer = resolveCorrectAnswer(rawCorrectAnswer, options);
-
-  if (!question || !correctAnswer || options.length === 0) {
-    return null;
-  }
+  if (!question || !correctAnswer || options.length === 0) return null;
 
   const { examName, institution, year } = getProvaMeta(row);
 
@@ -167,30 +156,17 @@ const toQuestion = (row: Record<string, unknown>): LoadedQuestion | null => {
 };
 
 const loadQuestionsFromSupabase = async (subject: MedicalSubject, count: number): Promise<LoadedQuestion[]> => {
-  if (!questionsSupabase) {
-    return [];
-  }
+  if (!questionsSupabase) return [];
 
-  let query = await questionsSupabase
-    .from(QUESTIONS_TABLE)
-    .select('*, provas(nome, instituicao, ano)')
-    .limit(500);
-
+  let query = await questionsSupabase.from(QUESTIONS_TABLE).select('*, provas(nome, instituicao, ano)').limit(500);
   if (query.error) {
-    query = await questionsSupabase
-      .from(QUESTIONS_TABLE)
-      .select('*')
-      .limit(500);
+    query = await questionsSupabase.from(QUESTIONS_TABLE).select('*').limit(500);
   }
-
   if (query.error || !query.data) {
-    throw new Error(query.error?.message || 'Falha ao consultar banco de questoes no Supabase.');
+    throw new Error(query.error?.message || 'Falha ao consultar banco de questões no Supabase.');
   }
 
-  const allMappedQuestions = (query.data as Record<string, unknown>[])
-    .map(toQuestion)
-    .filter((question): question is LoadedQuestion => Boolean(question));
-
+  const allMappedQuestions = (query.data as Record<string, unknown>[]).map(toQuestion).filter((question): question is LoadedQuestion => Boolean(question));
   const subjectQuestions = (query.data as Record<string, unknown>[])
     .filter((row) => {
       const rowSubject =
@@ -199,20 +175,29 @@ const loadQuestionsFromSupabase = async (subject: MedicalSubject, count: number)
         (row.disciplina as string) ||
         (row.especialidade as string) ||
         null;
-
-      if (!rowSubject) {
-        return true;
-      }
-
+      if (!rowSubject) return true;
       return subjectMatches(rowSubject, subject);
     })
     .map(toQuestion)
     .filter((question): question is LoadedQuestion => Boolean(question));
 
-  // If subject labels from the DB do not match app labels, prefer using DB data
-  // (mixed subjects) instead of falling back to the legacy local question bank.
   const source = subjectQuestions.length > 0 ? subjectQuestions : allMappedQuestions;
   return shuffle(source).slice(0, count);
+};
+
+const subjectLabel = (subject: MedicalSubject) => {
+  switch (subject) {
+    case 'Clínica Médica':
+      return 'Clínica Médica';
+    case 'Clínica Cirúrgica':
+      return 'Clínica Cirúrgica';
+    case 'Medicina Preventiva':
+      return 'Medicina Preventiva';
+    case 'Pediatria':
+      return 'Pediatria';
+    default:
+      return 'Banco de questões';
+  }
 };
 
 const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
@@ -223,6 +208,7 @@ const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [generatedExplanations, setGeneratedExplanations] = useState<Record<string, string>>({});
   const [isGeneratingExplanation, setIsGeneratingExplanation] = useState<Record<string, boolean>>({});
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const ensureExplanation = useCallback(
     async (question: LoadedQuestion) => {
@@ -231,7 +217,6 @@ const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
       if (isGeneratingExplanation[question.id]) return;
 
       setIsGeneratingExplanation((prev) => ({ ...prev, [question.id]: true }));
-
       try {
         const text = await generateQuestionExplanation({
           question: question.question,
@@ -242,15 +227,14 @@ const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
           year: question.year,
           examName: question.examName,
         });
-
         setGeneratedExplanations((prev) => ({
           ...prev,
-          [question.id]: formatExplanationText(text.trim()) || 'Nao foi possivel gerar explicacao.',
+          [question.id]: formatExplanationText(text.trim()) || 'Não foi possível gerar explicação.',
         }));
       } catch (err) {
         setGeneratedExplanations((prev) => ({
           ...prev,
-          [question.id]: err instanceof Error ? err.message : 'Falha ao gerar explicacao.',
+          [question.id]: err instanceof Error ? err.message : 'Falha ao gerar explicação.',
         }));
       } finally {
         setIsGeneratingExplanation((prev) => ({ ...prev, [question.id]: false }));
@@ -267,6 +251,7 @@ const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
     setSelectedAnswers({});
     setGeneratedExplanations({});
     setIsGeneratingExplanation({});
+    setCurrentIndex(0);
 
     try {
       const supabaseQuestions = await loadQuestionsFromSupabase(subject, 10);
@@ -281,13 +266,13 @@ const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
         return;
       }
 
-      setError(`Nao ha questoes disponiveis para ${subject} no momento.`);
+      setError(`Não há questões disponíveis para ${subject} no momento.`);
     } catch (err) {
       const localQuestions = getRandomLocalQuestions(subject, 10);
       if (localQuestions.length > 0) {
         setQuestions(localQuestions);
       } else {
-        setError(err instanceof Error ? err.message : 'Falha ao carregar as questoes.');
+        setError(err instanceof Error ? err.message : 'Falha ao carregar as questões.');
       }
     } finally {
       setTimeout(() => setIsLoading(false), 300);
@@ -301,12 +286,8 @@ const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
   const toggleAnswer = (index: number) => {
     const question = questions[index];
     const nextValue = !revealedAnswers[index];
-
     setRevealedAnswers((prev) => ({ ...prev, [index]: nextValue }));
-
-    if (question && nextValue) {
-      void ensureExplanation(question);
-    }
+    if (question && nextValue) void ensureExplanation(question);
   };
 
   const handleSelectAnswer = (questionIndex: number, option: string) => {
@@ -314,112 +295,136 @@ const IntensivoView: React.FC<IntensivoViewProps> = ({ subject, onExit }) => {
     setSelectedAnswers((prev) => ({ ...prev, [questionIndex]: option }));
   };
 
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev - 1 + questions.length) % questions.length);
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % questions.length);
+  };
+
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+      <div className="flex h-full flex-col items-center justify-center p-4 text-center">
         <LoadingSpinner size="lg" />
-        <p className="mt-4 text-[#003322]/70 text-lg">Sorteando questoes sobre {subject}...</p>
+        <p className="mt-4 text-lg text-[#061033]/75">Sorteando questões sobre {subject}...</p>
       </div>
     );
   }
 
-  if (error) {
+  if (error || questions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4 glass-panel text-[#003322]">
-        <h3 className="text-xl font-bold mb-2">Erro ao Carregar</h3>
-        <p>{error}</p>
-        <button onClick={onExit} className="mt-4 px-4 py-2 simmit-button text-white rounded">Voltar</button>
+      <div className="flex h-full flex-col items-center justify-center p-4 text-center">
+        <div className="rounded-[24px] border border-white/70 bg-white/70 px-8 py-10 shadow-[0_24px_48px_rgba(15,23,42,0.08)]">
+          <h3 className="text-xl font-bold text-[#061033]">Erro ao carregar</h3>
+          <p className="mt-2 text-[#061033]/70">{error || 'Não foi possível carregar questões.'}</p>
+          <button onClick={onExit} className="mt-5 rounded-full bg-[linear-gradient(90deg,#6d28d9,#10b981)] px-5 py-2.5 text-sm font-semibold text-white">Voltar</button>
+        </div>
       </div>
     );
   }
+
+  const question = questions[currentIndex];
+  const generatedExplanation = generatedExplanations[question.id] || '';
+  const explanationText = formatExplanationText(question.explanation.trim() || generatedExplanation);
+  const generating = Boolean(isGeneratingExplanation[question.id]);
+  const isRevealed = Boolean(revealedAnswers[currentIndex]);
+  const progressPercent = Math.max(16, ((currentIndex + 1) / questions.length) * 100);
+  const questionOriginLabel = [question.examName, question.institution, question.year].filter(Boolean).join(' • ') || 'USP AD • 2024';
 
   return (
-    <div className="overflow-y-auto h-full p-4 sm:p-6 bg-[#eaf0f7] text-[#003322] no-scrollbar">
-      <h2 className="text-2xl sm:text-3xl font-bold text-[#003322] mb-6 text-center">Banco de Questoes: {subject}</h2>
-      <div className="space-y-6 max-w-3xl mx-auto">
-        {questions.map((q, index) => {
-          const generatedExplanation = generatedExplanations[q.id] || '';
-          const explanationText = formatExplanationText(q.explanation.trim() || generatedExplanation);
-          const generating = Boolean(isGeneratingExplanation[q.id]);
+    <div className="min-h-full bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(244,246,251,0.98)_30%,rgba(225,214,255,0.78)_72%,rgba(214,246,233,0.64)_100%)] text-[#061033]">
+      <div className="mx-auto max-w-[1280px] px-8 pb-16 pt-10">
+        <div className="mx-auto max-w-[960px]">
+          <div className="h-3 rounded-full bg-[#d9e1ea]">
+            <div className="h-full rounded-full bg-[linear-gradient(90deg,#7c3aed,#10b981)]" style={{ width: `${progressPercent}%` }} />
+          </div>
 
-          return (
-            <div key={q.id} className="bg-white/60 p-5 rounded-lg shadow-md border border-white/60 animate-fade-in">
-              <div className="mb-2 text-xs text-[#003322]/65">
-                {q.examName ? <span>{q.examName}</span> : <span>Banco de questoes</span>}
-                {q.institution ? <span>{` - ${q.institution}`}</span> : null}
-                {q.year ? <span>{` - ${q.year}`}</span> : null}
+          <div className="mt-4 flex items-center justify-between text-[#061033]">
+            <span className="rounded-full border border-[#34d399] px-6 py-2 text-[14px] font-medium">Banco de questões: {subjectLabel(subject)}</span>
+            <button onClick={onExit} className="text-[15px] font-medium text-[#061033]/85">Encerrar</button>
+          </div>
+          <div className="mt-12 flex gap-4">
+            <div className="flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-[15px] bg-[#efe7fb] text-[31px] font-bold text-[#7c3aed] shadow-[0_8px_18px_rgba(124,58,237,0.12)]">{currentIndex + 1}</div>
+            <div className="max-w-[760px]">
+              <div className="mb-3 flex flex-wrap gap-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#64748b]">
+                {question.examName && <span>{question.examName}</span>}
+                {question.institution && <span>{question.institution}</span>}
+                {question.year && <span>{question.year}</span>}
               </div>
-
-              <p className="font-semibold text-[#003322] mb-4 text-left whitespace-pre-wrap">{`${index + 1}. ${q.question}`}</p>
-              <div className="space-y-2 mb-4">
-                {q.options.map((option, i) => {
-                  const optionLetter = String.fromCharCode(65 + i);
-                  const isRevealed = revealedAnswers[index];
-                  const isSelected = selectedAnswers[index] === option;
-                  const isCorrect = option === q.correctAnswer;
-
-                  let optionClasses = 'p-3 rounded-md border text-left transition-colors flex items-start';
-
-                  if (isRevealed) {
-                    if (isCorrect) {
-                      optionClasses += ' bg-[#18cf91]/15 border-[#18cf91]/60 text-[#003322] font-bold';
-                    } else if (isSelected && !isCorrect) {
-                      optionClasses += ' bg-[#741cd9]/15 border-[#741cd9]/60 text-[#003322] font-semibold';
-                    } else {
-                      optionClasses += ' bg-white/60 border-white/60 text-[#003322]/60 opacity-70';
-                    }
-                  } else {
-                    optionClasses += ' cursor-pointer';
-                    if (isSelected) {
-                      optionClasses += ' bg-[#18cf91]/15 border-[#18cf91]/60 text-[#003322] font-semibold ring-2 ring-[#18cf91]/60';
-                    } else {
-                      optionClasses += ' bg-white/60 border-white/60 text-[#003322] hover:bg-white/80';
-                    }
-                  }
-
-                  return (
-                    <div
-                      key={i}
-                      className={optionClasses}
-                      onClick={() => handleSelectAnswer(index, option)}
-                      role="button"
-                      tabIndex={isRevealed ? -1 : 0}
-                      aria-pressed={isSelected}
-                    >
-                      <span className="font-bold mr-2">{optionLetter}.</span> <span className="flex-1">{option}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                onClick={() => toggleAnswer(index)}
-                className="text-sm font-semibold text-[#741cd9] hover:text-[#18cf91]"
-              >
-                {revealedAnswers[index] ? 'Esconder Resposta' : 'Mostrar Resposta'}
-              </button>
-              {revealedAnswers[index] && (
-                <div className="mt-4 p-4 bg-[#18cf91]/10 border border-[#18cf91]/60/40 rounded-lg animate-fade-in text-left">
-                  <p className="font-bold text-[#003322]">Resposta Correta: <span className="font-normal">{q.correctAnswer}</span></p>
-                  {generating ? (
-                    <p className="mt-2 text-sm text-[#003322]">Gerando explicacao com IA...</p>
-                  ) : (
-                    <p className="mt-2 text-sm text-[#003322] whitespace-pre-wrap">
-                      <span className="font-bold">Explicacao:</span>{' '}
-                      {explanationText || 'Sem explicacao cadastrada para esta questao.'}
-                    </p>
-                  )}
-                </div>
-              )}
+              <h1 className="text-[20px] font-bold leading-[1.12] text-[#1f2937]">{question.question}</h1>
             </div>
-          );
-        })}
-      </div>
-      <div className="flex-shrink-0 text-center pt-8 pb-4">
-        <button onClick={fetchQuestions} className="text-sm font-semibold text-[#741cd9] hover:text-[#18cf91] mr-8">Sortear Novas Questoes</button>
-        <button onClick={onExit} className="text-sm font-semibold text-[#003322]/70 hover:text-[#003322]">Sair do Estudo</button>
+          </div>
+
+          <div className="mt-9 grid grid-cols-2 gap-4">
+            {question.options.map((option, i) => {
+              const optionLetter = String.fromCharCode(65 + i);
+              const isSelected = selectedAnswers[currentIndex] === option;
+              const isCorrect = option === question.correctAnswer;
+              const isIncorrectSelected = isRevealed && isSelected && !isCorrect;
+              const cardClassName = isRevealed
+                ? isCorrect
+                  ? 'border-[#22c55e] bg-[#dff8ec] text-[#166534]'
+                  : isIncorrectSelected
+                    ? 'border-[#f43f5e] bg-[#fff1f2] text-[#be123c]'
+                    : 'border-[#d7dfeb] bg-white/75 text-[#1f2937]'
+                : isSelected
+                  ? 'border-[#10b981] bg-[#ecfdf5] text-[#1f2937]'
+                  : 'border-[#d7dfeb] bg-white/75 text-[#1f2937]';
+
+              return (
+                <button
+                  key={option}
+                  onClick={() => handleSelectAnswer(currentIndex, option)}
+                  disabled={isRevealed}
+                  className={`rounded-[18px] border px-4 py-4 text-left shadow-[0_12px_24px_rgba(15,23,42,0.04)] ${cardClassName}`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white/70 text-[17px] font-semibold">{optionLetter}</span>
+                      <span className="text-[16px] leading-[1.18]">{option}</span>
+                    </div>
+                    {isRevealed && (isCorrect || isIncorrectSelected) ? <span className="text-[20px] font-bold">{isCorrect ? '?' : '×'}</span> : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-7 flex flex-col items-center">
+            <p className="text-[18px] font-medium">{currentIndex + 1}/{questions.length}</p>
+            <div className="mt-3 flex items-center gap-8">
+              <button onClick={handlePrev} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/55 text-[26px] text-[#061033]/65 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">&lsaquo;</button>
+              <button
+                onClick={() => toggleAnswer(currentIndex)}
+                className="rounded-[14px] bg-[linear-gradient(90deg,#6d28d9,#10b981)] px-6 py-3 text-[17px] font-semibold text-white shadow-[0_14px_30px_rgba(79,70,229,0.28)]"
+              >
+                {isRevealed ? 'Ocultar resposta' : 'Ver resposta'}
+              </button>
+              <button onClick={handleNext} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/55 text-[26px] text-[#061033]/65 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">&rsaquo;</button>
+            </div>
+          </div>
+
+          {isRevealed && (
+            <div className="mt-10 rounded-[22px] border border-white/60 bg-[linear-gradient(135deg,rgba(233,213,255,0.54),rgba(186,230,253,0.46))] px-7 py-7 shadow-[0_24px_54px_rgba(15,23,42,0.06)] backdrop-blur-2xl">
+              <div className="flex items-center gap-3 text-[20px] font-bold text-[#111827]">
+                <span>?</span>
+                <span>Explicação</span>
+              </div>
+              <p className="mt-5 text-[16px] leading-[1.6] text-[#334155]">
+                {generating ? 'Gerando explicação com IA...' : explanationText || 'Sem explicação cadastrada para esta questão.'}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
 export default IntensivoView;
+
+
+
+
+

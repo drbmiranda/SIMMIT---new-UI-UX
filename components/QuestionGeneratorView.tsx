@@ -1,290 +1,293 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { generateQuestionsFromText } from '../services/geminiService';
 import { MultipleChoiceQuestion } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 
-// Tell TypeScript that mammoth and pdfjsLib will be available on the global scope.
 declare const mammoth: any;
 declare const pdfjsLib: any;
 
 const extractTextFromDocx = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-    return result.value;
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value;
 };
 
-const extractTextFromTxt = (file: File): Promise<string> => {
-    return file.text();
-};
+const extractTextFromTxt = async (file: File): Promise<string> => file.text();
 
 const extractTextFromPdf = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    // The workerSrc property must be specified.
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.mjs`;
+  const arrayBuffer = await file.arrayBuffer();
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.mjs';
 
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        // The item.str is the text content.
-        const pageText = textContent.items.map((item: any) => item.str).join(' ');
-        fullText += pageText + '\n';
-    }
-    return fullText;
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+    fullText += `${pageText}\n`;
+  }
+
+  return fullText;
 };
 
-
 export const QuestionGeneratorView: React.FC = () => {
-    const [file, setFile] = useState<File | null>(null);
-    const [fileReady, setFileReady] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [questions, setQuestions] = useState<MultipleChoiceQuestion[]>([]);
-    const [revealedAnswers, setRevealedAnswers] = useState<Record<number, boolean>>({});
-    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [libsError, setLibsError] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [fileReady, setFileReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<MultipleChoiceQuestion[]>([]);
+  const [revealedAnswers, setRevealedAnswers] = useState<Record<number, boolean>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [libsError, setLibsError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        // Give the scripts a moment to load from the CDN
-        const timer = setTimeout(() => {
-            if (typeof mammoth === 'undefined' || typeof pdfjsLib === 'undefined') {
-                setLibsError('As bibliotecas para processar arquivos não puderam ser carregadas. Verifique sua conexão com a internet e tente recarregar a página.');
-            }
-        }, 2000);
-        return () => clearTimeout(timer);
-    }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (typeof mammoth === 'undefined' || typeof pdfjsLib === 'undefined') {
+        setLibsError('As bibliotecas de processamento de arquivo nao foram carregadas. Recarregue a pagina.');
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
+  const clearResultState = () => {
+    setQuestions([]);
+    setRevealedAnswers({});
+    setSelectedAnswers({});
+  };
 
-    const resetState = () => {
-        setFile(null);
-        setFileReady(false);
-        setIsLoading(false);
-        setError(null);
-                setFileReady(true);
-        setQuestions([]);
-        setFileReady(false);
-        setRevealedAnswers({});
-        setSelectedAnswers({});
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = event.target.files?.[0];
-        if (selectedFile) {
-            resetState();
-            const allowedTypes = [
-                'text/plain', 
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/pdf'
-            ];
-            if (allowedTypes.includes(selectedFile.type)) {
-                setFile(selectedFile);
-                setFileReady(true);
-                setError(null);
-                setFileReady(true);
-            } else {
-                setError('Por favor, selecione um arquivo DOCX, TXT ou PDF.');
-            }
-        }
-    };
-    
-    const handleGenerate = async () => {
-        if (!file) {
-            setError('Nenhum arquivo selecionado.');
-            return;
-        }
-
-        setIsLoading(true);
-        setError(null);
-                setFileReady(true);
-        setQuestions([]);
-        setFileReady(false);
-        setRevealedAnswers({});
-        setSelectedAnswers({});
-
-        try {
-            let textContent = '';
-            if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                textContent = await extractTextFromDocx(file);
-            } else if (file.type === 'application/pdf') {
-                textContent = await extractTextFromPdf(file);
-            } else {
-                textContent = await extractTextFromTxt(file);
-            }
-
-            if (!textContent.trim()) {
-                throw new Error("O arquivo parece estar vazio ou não contém texto legível.");
-            }
-            
-            const generatedQuestions = await generateQuestionsFromText(textContent);
-            setQuestions(generatedQuestions);
-
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : "Ocorreu um erro desconhecido.";
-            setError(errorMessage);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const toggleAnswer = (index: number) => {
-        setRevealedAnswers(prev => ({ ...prev, [index]: !prev[index] }));
-    };
-
-    const handleSelectAnswer = (questionIndex: number, option: string) => {
-        if (revealedAnswers[questionIndex]) return;
-        setSelectedAnswers(prev => ({ ...prev, [questionIndex]: option }));
-    };
-
-    if (libsError) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-4 glass-panel text-[#003322]">
-                <h3 className="text-xl font-bold mb-2">Erro de Carregamento</h3>
-                <p>{libsError}</p>
-            </div>
-        );
+  const resetAll = () => {
+    setFile(null);
+    setFileReady(false);
+    setIsLoading(false);
+    setError(null);
+    clearResultState();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-    
-    if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <LoadingSpinner size="lg" />
-                <p className="mt-4 text-[#003322]/70 text-lg">Analisando o documento e gerando questões...</p>
-                <p className="mt-1 text-sm text-[#003322]/60">Isso pode levar alguns instantes.</p>
-            </div>
-        );
-    }
-    
-    if (questions.length > 0) {
-        return (
-            <div className="overflow-y-auto h-full p-4 sm:p-6 bg-[#eaf0f7] text-[#003322] no-scrollbar">
-                <h2 className="text-2xl sm:text-3xl font-bold text-[#003322] mb-6 text-center">Questões Geradas</h2>
-                <div className="space-y-6 max-w-2xl mx-auto">
-                    {questions.map((q, index) => (
-                        <div key={index} className="bg-white/60 p-5 rounded-lg shadow-md border border-white/60 animate-fade-in">
-                            <p className="font-semibold text-[#003322] mb-4 text-left">{`${index + 1}. ${q.question}`}</p>
-                            <div className="space-y-2 mb-4">
-                                {q.options.map((option, i) => {
-                                    const optionLetter = String.fromCharCode(65 + i);
-                                    const isRevealed = revealedAnswers[index];
-                                    const isSelected = selectedAnswers[index] === option;
-                                    const isCorrect = option === q.correctAnswer;
-                                    
-                                    let optionClasses = 'p-3 rounded-md border text-left transition-colors flex items-start';
-                                    
-                                    if (isRevealed) {
-                                        if (isCorrect) {
-                                            optionClasses += ' bg-[#18cf91]/15 border-[#18cf91]/60 text-[#003322] font-bold';
-                                        } else if (isSelected && !isCorrect) {
-                                            optionClasses += ' bg-[#741cd9]/15 border-[#741cd9]/60 text-[#003322] font-semibold';
-                                        } else {
-                                            optionClasses += ' bg-white/60 border-white/60 text-[#003322]/60 opacity-70';
-                                        }
-                                    } else {
-                                        optionClasses += ' cursor-pointer';
-                                        if (isSelected) {
-                                            optionClasses += ' bg-[#18cf91]/15 border-[#18cf91]/60 text-[#003322] font-semibold ring-2 ring-[#18cf91]/60';
-                                        } else {
-                                            optionClasses += ' bg-white/60 border-white/60 text-[#003322] hover:bg-white/60';
-                                        }
-                                    }
+  };
 
-                                    return (
-                                        <div 
-                                            key={i} 
-                                            className={optionClasses}
-                                            onClick={() => handleSelectAnswer(index, option)}
-                                            role="button"
-                                            tabIndex={isRevealed ? -1 : 0}
-                                            aria-pressed={isSelected}
-                                        >
-                                           <span className="font-bold mr-2">{optionLetter}.</span> <span>{option}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <button
-                                onClick={() => toggleAnswer(index)}
-                                className="text-sm font-semibold text-[#741cd9] hover:text-[#18cf91]"
-                            >
-                                {revealedAnswers[index] ? 'Esconder Resposta' : 'Mostrar Resposta'}
-                            </button>
-                            {revealedAnswers[index] && (
-                                <div className="mt-4 p-4 bg-[#18cf91]/10 border border-[#18cf91]/60/40 rounded-lg animate-fade-in text-left">
-                                    <p className="font-bold text-[#003322]">Resposta Correta: <span className="font-normal">{q.correctAnswer}</span></p>
-                                    <p className="mt-2 text-sm text-[#003322]"><span className="font-bold">Explicação:</span> {q.explanation}</p>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-                <div className="text-center mt-8">
-                    <button
-                        onClick={resetState}
-                        className="px-6 py-2 bg-white/60 border border-white/60 text-[#003322] font-semibold rounded-lg hover:bg-white/20 transition"
-                    >
-                        Gerar Novas Questões
-                    </button>
-                </div>
-            </div>
-        );
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0] ?? null;
+    if (!selectedFile) return;
+
+    const allowedTypes = [
+      'text/plain',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/pdf',
+    ];
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      setError('Selecione um arquivo DOCX, TXT ou PDF.');
+      setFile(null);
+      setFileReady(false);
+      clearResultState();
+      return;
     }
 
+    setFile(selectedFile);
+    setFileReady(true);
+    setError(null);
+    clearResultState();
+  };
+
+  const handleGenerate = async () => {
+    if (!file) {
+      setError('Nenhum arquivo selecionado.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    clearResultState();
+
+    try {
+      let textContent = '';
+
+      if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        textContent = await extractTextFromDocx(file);
+      } else if (file.type === 'application/pdf') {
+        textContent = await extractTextFromPdf(file);
+      } else {
+        textContent = await extractTextFromTxt(file);
+      }
+
+      if (!textContent.trim()) {
+        throw new Error('O arquivo parece vazio ou sem texto legivel.');
+      }
+
+      const generatedQuestions = await generateQuestionsFromText(textContent);
+      setQuestions(generatedQuestions);
+      setFileReady(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar questoes.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleAnswer = (index: number) => {
+    setRevealedAnswers((prev) => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  const handleSelectAnswer = (questionIndex: number, option: string) => {
+    if (revealedAnswers[questionIndex]) return;
+    setSelectedAnswers((prev) => ({ ...prev, [questionIndex]: option }));
+  };
+
+  if (libsError) {
     return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-4 bg-[#eaf0f7] text-[#003322]">
-            <div className="w-full max-w-lg">
-                <h2 className="text-2xl sm:text-3xl font-bold text-[#003322] mb-2">Gerador de Questões</h2>
-                <p className="text-[#003322]/70 mb-8 max-w-md mx-auto">
-                    Faça o upload de uma aula, artigo ou resumo em DOCX, TXT ou PDF e a IA criará questões de múltipla escolha para você.
-                </p>
-                <div 
-                    className={`relative border-2 border-dashed rounded-xl p-8 sm:p-12 cursor-pointer transition-colors ${fileReady ? "border-[#18cf91] bg-white/20" : "border-white/60 hover:border-[#18cf91] hover:bg-white/30"}` }
-                    onClick={() => fileInputRef.current?.click()}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
-                >
-                    <input 
-                        type="file" 
-                        ref={fileInputRef}
-                        onChange={handleFileChange} 
-                        accept=".docx,.txt,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/pdf"
-                        className="hidden"
-                        aria-label="Seletor de arquivo"
-                    />
-                    <div className="flex flex-col items-center text-[#003322]/60">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4 text-[#003322]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <p className="font-semibold text-[#003322]">Arraste e solte seu arquivo aqui</p>
-                        <p className="text-sm text-[#003322]/60 mt-1">ou <span className="text-[#741cd9] font-semibold">clique para selecionar</span></p>
-                        <p className="text-xs text-[#003322]/60 mt-4">Suporta: DOCX, TXT, PDF</p>
-                    </div>
-                </div>
-
-                {fileReady && !isLoading && (
-                    <div className="mt-4 rounded-full border border-[#18cf91]/50 bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#18cf91]">Documento carregado</div>
-                )}
-
-                {file && (
-                    <div className="mt-6 text-center animate-fade-in">
-                        <p className="text-[#003322]">Arquivo selecionado: <span className="font-semibold">{file.name}</span></p>
-                        <button
-                            onClick={handleGenerate}
-                            disabled={isLoading}
-                            className="mt-4 simmit-button px-8 py-3 rounded-lg font-semibold text-white shadow-md transition disabled:opacity-50"
-                        >
-                            Gerar Questões
-                        </button>
-                    </div>
-                )}
-                
-                {error && <p className="mt-4 text-[#741cd9] animate-fade-in">{error}</p>}
-            </div>
+      <div className="mx-auto flex h-full w-full max-w-3xl flex-col items-center justify-center p-4 text-center text-[#003322]">
+        <div className="w-full rounded-3xl border border-white/70 bg-white/75 p-8 shadow-[0_24px_64px_rgba(116,28,217,0.16)] backdrop-blur-xl">
+          <h3 className="text-xl font-bold">Erro de carregamento</h3>
+          <p className="mt-2 text-[#003322]/75">{libsError}</p>
         </div>
+      </div>
     );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-4 text-center">
+        <LoadingSpinner size="lg" />
+        <p className="mt-4 text-lg text-[#003322]/80">Analisando documento e gerando questoes...</p>
+      </div>
+    );
+  }
+
+  if (questions.length > 0) {
+    return (
+      <div className="mx-auto h-full w-full max-w-5xl overflow-y-auto px-4 pb-8 pt-6 text-[#003322] no-scrollbar sm:px-6">
+        <div className="rounded-3xl border border-white/70 bg-white/75 px-5 py-6 shadow-[0_24px_64px_rgba(116,28,217,0.12)] backdrop-blur-xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#741cd9]/80">05 Question bank</p>
+          <h2 className="mt-2 font-title text-3xl tracking-tight text-[#003322]">Questoes geradas</h2>
+          <p className="mt-2 text-sm text-[#003322]/70">Responda, revele o gabarito e revise a explicacao de cada item.</p>
+        </div>
+
+        <div className="mt-5 space-y-5">
+          {questions.map((q, index) => (
+            <div key={index} className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-md">
+              <p className="text-base font-semibold text-[#003322]">{index + 1}. {q.question}</p>
+
+              <div className="mt-4 space-y-2">
+                {q.options.map((option, optionIndex) => {
+                  const optionLetter = String.fromCharCode(65 + optionIndex);
+                  const isRevealed = revealedAnswers[index];
+                  const isSelected = selectedAnswers[index] === option;
+                  const isCorrect = option === q.correctAnswer;
+
+                  let optionClasses = 'flex items-start rounded-xl border p-3 text-left transition-colors';
+
+                  if (isRevealed) {
+                    if (isCorrect) {
+                      optionClasses += ' border-[#18cf91]/60 bg-[#18cf91]/15 font-semibold text-[#003322]';
+                    } else if (isSelected && !isCorrect) {
+                      optionClasses += ' border-[#741cd9]/60 bg-[#741cd9]/15 text-[#003322]';
+                    } else {
+                      optionClasses += ' border-white/70 bg-white/65 text-[#003322]/65';
+                    }
+                  } else if (isSelected) {
+                    optionClasses += ' cursor-pointer border-[#18cf91]/60 bg-[#18cf91]/10 ring-2 ring-[#18cf91]/45';
+                  } else {
+                    optionClasses += ' cursor-pointer border-white/70 bg-white/65 hover:bg-white';
+                  }
+
+                  return (
+                    <div
+                      key={optionIndex}
+                      className={optionClasses}
+                      onClick={() => handleSelectAnswer(index, option)}
+                      role="button"
+                      tabIndex={isRevealed ? -1 : 0}
+                      aria-pressed={isSelected}
+                    >
+                      <span className="mr-2 font-bold">{optionLetter}.</span>
+                      <span>{option}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => toggleAnswer(index)}
+                className="mt-4 text-sm font-semibold text-[#741cd9] hover:text-[#18cf91]"
+              >
+                {revealedAnswers[index] ? 'Esconder resposta' : 'Mostrar resposta'}
+              </button>
+
+              {revealedAnswers[index] && (
+                <div className="mt-4 rounded-xl border border-[#18cf91]/45 bg-[#18cf91]/10 p-4">
+                  <p className="font-semibold text-[#003322]">Resposta correta: {q.correctAnswer}</p>
+                  <p className="mt-2 text-sm text-[#003322]/80">{q.explanation}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={resetAll}
+            className="rounded-xl border border-white/70 bg-white/80 px-6 py-2.5 font-semibold text-[#003322] transition hover:bg-white"
+          >
+            Gerar novas questoes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto flex h-full w-full max-w-5xl flex-col px-4 pb-8 pt-6 text-[#003322] sm:px-6">
+      <div className="rounded-3xl border border-white/70 bg-white/75 px-5 py-6 shadow-[0_24px_64px_rgba(116,28,217,0.12)] backdrop-blur-xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#741cd9]/80">05 Question bank</p>
+        <h2 className="mt-2 font-title text-3xl tracking-tight text-[#003322]">Gerador de questoes</h2>
+        <p className="mt-2 text-sm text-[#003322]/70">Faça upload de DOCX, TXT ou PDF para gerar questoes de multipla escolha.</p>
+      </div>
+
+      <div className="mt-6 rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_20px_50px_rgba(116,28,217,0.12)] backdrop-blur-xl">
+        <div
+          className={`cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition ${fileReady ? 'border-[#18cf91] bg-[#18cf91]/10' : 'border-[#741cd9]/30 bg-white/70 hover:border-[#18cf91]'}`}
+          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+        >
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".docx,.txt,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/pdf"
+            className="hidden"
+            aria-label="Selecionar arquivo"
+          />
+          <p className="text-base font-semibold text-[#003322]">Arraste seu arquivo ou clique para selecionar</p>
+          <p className="mt-1 text-sm text-[#003322]/65">Formatos suportados: DOCX, TXT, PDF</p>
+        </div>
+
+        {file && (
+          <div className="mt-5 text-center">
+            <p className="text-sm text-[#003322]/75">
+              Arquivo selecionado: <span className="font-semibold text-[#003322]">{file.name}</span>
+            </p>
+            <button
+              onClick={handleGenerate}
+              disabled={isLoading}
+              className="mt-4 rounded-xl bg-[#741cd9] px-8 py-3 font-semibold text-white shadow-[0_14px_28px_rgba(116,28,217,0.35)] transition hover:brightness-110 disabled:opacity-60"
+            >
+              Gerar questoes
+            </button>
+          </div>
+        )}
+
+        {error && <p className="mt-4 text-center text-sm font-medium text-[#741cd9]">{error}</p>}
+      </div>
+    </div>
+  );
 };
