@@ -23,6 +23,19 @@ export interface OsceCaseData {
   tarefasDoAluno: string[];
   instrucoesDoPaciente: string;
   criteriosDeAvaliacao: string[];
+  fichaDoPaciente: {
+    nome: string;
+    idade: number | null;
+    sexo: 'Masculino' | 'Feminino';
+    queixaPrincipal: string;
+  };
+}
+
+export interface PatientChartSnapshot {
+  name: string;
+  chiefComplaint: string;
+  age: number | null;
+  sex: 'Masculino' | 'Feminino';
 }
 
 export interface MultipleChoiceQuestion {
@@ -241,6 +254,7 @@ export interface AppState {
   showFeedback: boolean;
   feedbackText: string | null;
   currentOsceCase: string | null; // Stores the full text for the teacher/feedback
+  patientChart: PatientChartSnapshot | null;
   runningScore: number;
   scoreNotification: { change: number; reason: string } | null;
   activeActivity: 'simulation' | 'flashcards' | 'question_bank' | 'pdf_questions' | 'pdf_flashcards' | null;
@@ -249,6 +263,7 @@ export interface AppState {
 }
 
 export type SimulationResult = Database['public']['Tables']['simulation_results']['Row'];
+
 
 
 

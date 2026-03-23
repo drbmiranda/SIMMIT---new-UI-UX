@@ -13,7 +13,6 @@ interface ProfilePanelProps {
   variant?: 'modal' | 'dock';
 }
 
-const AVATAR_STORAGE_KEY = 'simmit-profile-avatar';
 const PANEL_BACKGROUND = 'radial-gradient(265.82% 126.76% at 14.14% 0%, #F8FAFC 40.22%, #E3D1F7 61.67%, #D1F5E9 100%)';
 
 const ProfilePanel: React.FC<ProfilePanelProps> = ({
@@ -26,8 +25,6 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
 }) => {
   const [displayName, setDisplayName] = useState(profile?.full_name ?? 'Aluno(a)');
   const [draftName, setDraftName] = useState(profile?.full_name ?? 'Aluno(a)');
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [draftAvatarUrl, setDraftAvatarUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -38,28 +35,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
     setDraftName(nextName);
   }, [profile?.full_name]);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(AVATAR_STORAGE_KEY);
-      setAvatarUrl(stored);
-      setDraftAvatarUrl(stored);
-    } catch {
-      setAvatarUrl(null);
-      setDraftAvatarUrl(null);
-    }
-  }, [isOpen]);
 
-  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : null;
-      if (!result) return;
-      setDraftAvatarUrl(result);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleSaveProfile = async () => {
     if (!profile?.id) return;
@@ -68,15 +44,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
     try {
       const { error } = await supabase.from('profiles').update({ full_name: draftName }).eq('id', profile.id);
       if (error) throw error;
-      if (draftAvatarUrl) {
-        try {
-          localStorage.setItem(AVATAR_STORAGE_KEY, draftAvatarUrl);
-        } catch {
-          // no-op
-        }
-      }
       setDisplayName(draftName);
-      setAvatarUrl(draftAvatarUrl);
       setSaveMessage('Perfil atualizado com sucesso.');
       setTimeout(() => setIsEditProfileOpen(false), 700);
     } catch (err) {
@@ -88,7 +56,6 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
 
   const handleOpenEditProfile = () => {
     setDraftName(displayName);
-    setDraftAvatarUrl(avatarUrl);
     setSaveMessage(null);
     setIsEditProfileOpen(true);
   };
@@ -126,7 +93,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 sm:p-5">
-        <StudentDashboard profile={profile ? { ...profile, full_name: displayName } : profile} avatarUrl={avatarUrl} />
+        <StudentDashboard profile={profile ? { ...profile, full_name: displayName } : profile} />
 
         <div className="mt-6 rounded-[28px] border border-white/80 bg-white/72 p-6 shadow-[0_24px_70px_rgba(6,16,51,0.09)] backdrop-blur-xl">
           <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#741cd9]">Sessão</p>
@@ -147,7 +114,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#741cd9]">Editar perfil</p>
-                <h3 className="mt-2 text-2xl font-bold text-[#061033]">Atualize sua foto e seu nome</h3>
+                <h3 className="mt-2 text-2xl font-bold text-[#061033]">Atualize seu nome</h3>
                 <p className="mt-2 text-sm text-[#003322]/70">Pop-up oficial da dashboard para personalização do perfil.</p>
               </div>
               <button
@@ -161,16 +128,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
               </button>
             </div>
 
-            <div className="mt-7 grid gap-6 lg:grid-cols-[148px_minmax(0,1fr)] lg:items-center">
-              <div className="flex flex-col items-center gap-3">
-                <div className="h-[124px] w-[124px] overflow-hidden rounded-full border-[4px] border-white bg-[linear-gradient(135deg,#f5f0ff,#ffffff)] shadow-[0_20px_40px_rgba(116,28,217,0.14)]">
-                  {draftAvatarUrl ? <img src={draftAvatarUrl} alt="Avatar do perfil" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[#741cd9]">Foto</div>}
-                </div>
-                <label className="cursor-pointer rounded-full border border-[#741cd9]/24 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#741cd9] shadow-sm hover:bg-[#f7f2ff]">
-                  Trocar foto
-                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-                </label>
-              </div>
+            <div className="mt-7">
               <div className="space-y-4">
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b8798]">Nome exibido</label>
@@ -184,7 +142,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b8798]">E-mail</label>
-                  <div className="mt-2 rounded-[20px] border border-white/85 bg-[#f8fbff] px-4 py-3.5 text-sm text-[#003322]/72">{email ?? 'não identificado'}</div>
+                  <div className="mt-2 rounded-[20px] border border-white/85 bg-[#f8fbff] px-4 py-3.5 text-sm text-[#003322]/72">{email ?? 'n?o identificado'}</div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
@@ -192,7 +150,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
                     disabled={isSaving || !draftName.trim()}
                     className="inline-flex items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#4d5d8f_0%,#5d36d1_45%,#31c9a3_100%)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_34px_rgba(93,54,209,0.22)] disabled:opacity-60"
                   >
-                    {isSaving ? 'Salvando...' : 'Salvar alterações'}
+                    {isSaving ? 'Salvando...' : 'Salvar altera??es'}
                   </button>
                   <button
                     onClick={() => setIsEditProfileOpen(false)}

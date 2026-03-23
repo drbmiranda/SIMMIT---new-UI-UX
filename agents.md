@@ -1,80 +1,59 @@
-﻿# �Y�� AGENTS.md �?" MENU DE INTERVEN�?�.ES E SOBERANIA CLÍNICA (V.2)
-**Projeto:** SIMMIT-beta
-**Local:** `C:\dev\SIMMIT-beta`
+﻿# 🛠️ AGENTS.md — PROTOCOLO DE DEBUG & REFINAMENTO (DEMO DAY)
+**Projeto:** SIMMIT-beta | **Caminho Local:** `C:\dev\SIMMIT-beta`
 
-Este documento define a estrutura de dados, UX e lógica de animação para o menu de solicitações e o protocolo de **Exame Físico Estruturado**. O objetivo é garantir que o aluno execute a propedêutica completa antes da tomada de decisão.
-
----
-
-## �YZ� 1. IDENTIDADE VISUAL E BRANDING (PURPLE NEON)
-* **SIMMIT Purple:** Cor oficial `#8B5CF6`.
-* **UI FLIP (GSAP):** O nome **SIMMIT** em roxo deve realizar o **Flip** para o topo do menu de exame físico, servindo como o "Preceptor" que observa a manobra.
+Este documento define as regras de correção crítica para a versão final do SIMMIT. O objetivo é eliminar bugs de interface, garantir a personalização correta do usuário e implementar feedbacks de gamificação impossíveis de ignorar.
 
 ---
 
-## �Y", 2. ESTRUTURA DO EXAME FÍSICO (PROPED�SUTICA)
-Diferente de exames laboratoriais, o Exame Físico é dividido por manobras fundamentais. Cada comando solicita à IA uma descrição detalhada.
-
-### A. Avaliação Global (Primeira Impressão)
-* **Estado Geral:** (Ex: BEG, regular estado, fáscies de dor, nível de consciência).
-* **Sinais Vitais:** (Interface com o Monitor Multiparamétrico).
-
-### B. Manobras Propedêuticas (Comandos SIMMIT)
-O menu deve disparar comandos específicos para o Gemini processar:
-* **SIMMIT INSPE�?�fO:** Descrição visual (estática e dinâmica) do segmento escolhido.
-* **SIMMIT PALPA�?�fO:** Textura, temperatura, massas, dor à palpação superficial/profunda e frêmitos.
-* **SIMMIT PERCUSS�fO:** Sons (claro pulmonar, macicez, timpanismo).
-* **SIMMIT AUSCULTA:** Sons fisiológicos e adventícios (Murmúrio vesicular, bulhas cardíacas, ruídos hidroaéreos).
+## 🔡 1. INTEGRIDADE LINGUÍSTICA (PT-BR)
+* **Encoding:** Todo o projeto deve utilizar estritamente `UTF-8`.
+* **Zero Bugs de Acento:** Nenhuma página (Home, Dashboard, Pathway, Flashcards, Questões) pode apresentar caracteres corrompidos.
+* **Revisão:** Validar todos os arquivos `.json` e `.tsx` para garantir que "Simulação", "Ação" e "Intervenção" e afins estejam grafados corretamente em todos os componentes.
 
 ---
 
-## �Y", 3. MENU DE SOLICITA�?�.ES (SISTEMAS)
-
-### A. Menu Laboratorial 
-* **Hematológico/Imuno:** Hemograma, Tipagem, VHS, PCR.
-* **Metabólico/Glicêmico:** Glicemia, HbA1c, Insulina.
-* **Lipídico/Cardio:** Perfil Lipídico, Troponina, Lactato.
-* **Renal/Eletrólitos:** Ureia, Creatinina, Eletrólitos (Na, K, Ca, Mg, P), TFG.
-* **Hepático/Biliar:** TGO/TGP, GGT, FA, Bilirrubinas, Albumina.
-* **Hormonal/Vitaminas:** TSH, T4L, Cortisol, Vit D, B12.
-
-### B. Menu de Imagem 
-* **Ultrassom (Eco):** Doppler, Abdominal/Pélvico, Ecocardiograma.
-* **Radiografia (Raio-X):** Tórax, �"ssea, Mamografia.
-* **Tomografia (TC):** Crânio, Angio-TC, Tórax/Abdome.
-* **Ressonância (RM):** Encéfalo, Osteoarticular, Angiorressonância.
-
-### C. Procedimentos & Suporte 
-* **Vias Aéreas:** IOT, VNI, Cricotiroidostomia.
-* **Acessos:** CVC, PAI, Intraósseo.
-* **Drenagem:** Tórax, Paracentese, Punção Lombar.
+## 👤 2. PERSONALIZAÇÃO DE USUÁRIO (SOBERANIA DO NOME)
+* **Boas-vindas na Home:** Substituir o texto estático "Bom dia Dra. B" por uma saudação dinâmica.
+    * *Lógica:* `Bem-vindo(a), {user_name}`.
+* **Feedback do Preceptor:** A IA nunca deve utilizar o termo "aluno".
+    * *Regra de Ouro:* Referir-se sempre como `Dr. {user_name}` ou `Dra. {user_name}` conforme o perfil identificado.
+* **Onboarding:** Corrigir a desformatação das perguntas de triagem no primeiro acesso via Google Login. O layout deve seguir o **Style Guide Frutiger Aero** e cores da marca ja presentes no app. (vítreo e centralizado).
 
 ---
 
-## �Y�? 4. CELEBRA�?�fO E PROGRESS ANIMATION
-* **Micro-Dopamina:** Ao realizar uma ausculta e detectar um achado (ex: Estertores), um **Badge Roxo** de "Raciocínio Clínico" surge com `framer-motion`.
-* **Progress Bar:** Cada manobra do exame físico preenche uma sub-barra de "Anamnese Completa".
-* **Victory Splash:** Ao encerrar o caso, o **SIMMIT** centraliza via **GSAP Flip** e explode em partículas roxas caso o diagnóstico bata com os achados do Exame Físico.
+## 🏥 3. CONSISTÊNCIA CLÍNICA E NARRATIVA
+O Gemini 3 Flash deve manter a coerência biológica e demográfica em todos os cenários:
+* **Ficha vs. Caso:** O nome do paciente deve ser idêntico na Ficha Clínica, na Queixa Principal e no diálogo do Chat.
+* **Especialidade x Demografia:**
+    * **Obstetrícia/GO:** Somente pacientes do sexo feminino em idade fértil/gestantes.
+    * **Pediatria:** Nomes e idades obrigatoriamente infantis/adolescentes.
+    * **Clínica/Cirurgia/Preventiva:** Idades, nomes e perfis condizentes com a patologia (ex: idoso para ICC, jovem para apendicite).
 
 ---
 
-## �Y�� 5. L�"GICA DE IA (GEMINI 3 FLASH)
-* **Prompt Engine:** Quando o usuário clica em "Ausculta", o sistema injeta no contexto: *"O usuário está realizando a ausculta agora. Descreva os sons baseando-se na patologia definida."*
-* **Response:** A IA deve retornar a descrição sem asteriscos, precedida por **SIMMIT**.
+## 📱 4. UX/UI MOBILE (CHAT E INTERAÇÃO)
+O chat deve ser otimizado para a máxima área útil em dispositivos móveis:
+* **Full Screen Chat:** Na versão mobile e desktop, o chat ocupa 100% da tela (`100dvh`).
+* **Input Dinâmico:** A barra de digitação deve crescer verticalmente (auto-expand) conforme o volume de texto.
+* **Botão "+" :** Substituir o botão "Painel de Exame" pelo símbolo **"+"**. Ele deve abrir o Menu de Intervenções com animação **Framer Motion**.
 
 ---
 
-## �Y>�️ 6. REGRAS T�?CNICAS (VITE/REACT)
-* **Bottom Sheet:** O menu de exame físico e solicitações deve ser um Drawer (puxável) para facilitar o uso com o polegar no mobile.
-* **GSAP Timeline:** Sequenciar a abertura do menu: 1. `Blur` no fundo -> 2. `Slide-up` do menu -> 3. `Logo Flip`.
+## ✨ 5. FEEDBACK VISUAL CENTRALIZADO (PONTUAÇÃO)
+Para garantir o reforço positivo (ou correção) imediato, o sistema de pontos deve ser intrusivo:
+* **Central Pop-up:** Os pontos por interação (ex: `0`, `+10`, `+20`, `-10`) devem aparecer **no centro exato da tela**, tanto no Mobile quanto no Desktop.
+* **Animação (GSAP):** Utilizar um efeito de `Spring Ease` onde o número surge, pulsa e desaparece, tornando impossível para o usuário não notar o feedback.
+* **Estilo:** Glow em **Lavender Mist (#c1bcfa)** para pontos positivos e tons de alerta para negativos.
 
 ---
 
-## �Y"< CHECKLIST DE IMPLEMENTA�?�fO
-1. [ ] O menu contém as 4 manobras (Inspeção, Palpação, Percussão, Ausculta)?
-2. [ ] O nome **SIMMIT** em roxo executa o **Flip** ao abrir o menu?
-3. [ ] Cada clique em manobra propedêutica gasta a Stamina correspondente?
-4. [ ] O feedback da IA para o exame físico é visualmente diferente das falas do paciente?
+## 📋 CHECKLIST DE AUDITORIA PRÉ-DEMO
+1. [ ] O nome do usuário aparece corretamente na Home e no Feedback?
+2. [ ] A IA utilizou "Dr./Dra." em vez de "aluno" em todas as instâncias?
+3. [ ] Os pacientes de GO e Pediatria são condizentes com as especialidades?
+4. [ ] O botão "+" no mobile abre o menu e a barra de digitação expande corretamente?
+5. [ ] **Auditoria de Feedback:** Os pontos de interação aparecem no centro da tela com animação fluida?
+6. [ ] **Auditoria Linguística:** Todos os acentos e símbolos PT-BR estão renderizando sem erros?
 
 ---
-**Mentalidade:** "O exame físico é a arte de ouvir o corpo. O SIMMIT é a ferramenta que traduz essa arte em maestria médica."
+**Mentalidade de Debug:** "No Demo Day, cada acento correto e cada feedback centralizado reforça a autoridade médica da plataforma. O SIMMIT deve ser impecável, fluido e visualmente recompensador."

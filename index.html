@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -215,7 +215,12 @@
       animation: float-up-fade 0.9s ease-out forwards;
     }
 
-    @keyframes pulse-float\n\n    @keyframes soft-glow {
+    @keyframes pulse-float {
+      0%, 100% { transform: translateY(0px) scale(1); opacity: 0.9; }
+      50% { transform: translateY(-10px) scale(1.03); opacity: 1; }
+    }
+
+    @keyframes soft-glow {
       0%, 100% {
         box-shadow: 0 0 0 6px rgba(116, 28, 217, 0.10), 0 0 18px rgba(116, 28, 217, 0.18);
       }

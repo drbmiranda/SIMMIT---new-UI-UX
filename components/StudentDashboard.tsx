@@ -95,10 +95,9 @@ const SubjectPerformanceRow: React.FC<{ subject: string; score: number | null }>
 
 interface StudentDashboardProps {
   profile: Profile | null;
-  avatarUrl?: string | null;
 }
 
-export const StudentDashboard: React.FC<StudentDashboardProps> = ({ profile, avatarUrl }) => {
+export const StudentDashboard: React.FC<StudentDashboardProps> = ({ profile }) => {
   const [results, setResults] = useState<SimulationResult[]>([]);
   const [analysis, setAnalysis] = useState<PerformanceAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -246,7 +245,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ profile, ava
             <section className="rounded-[24px] border border-white/85 bg-white/80 p-5 shadow-[0_18px_40px_rgba(6,16,51,0.05)]">
               <div className="flex items-start justify-between gap-4">
                 <div><p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#741cd9]">Radar de foco</p><h2 className="mt-2 text-xl font-bold text-[#061033]">Próximos ajustes</h2></div>
-                {avatarUrl ? <img src={avatarUrl} alt="Perfil" className="h-12 w-12 rounded-full border border-white/80 object-cover" /> : null}
               </div>
               <div className="mt-5 space-y-4">
                 <div className="rounded-[20px] border border-white/70 bg-[#f8fbff] p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7b8798]">Maior força atual</p><div className="mt-2 flex items-center justify-between gap-4"><span className="text-base font-semibold text-[#061033]">{strongestSubject?.subject ?? 'Aguardando histórico'}</span><span className="rounded-full bg-[#18cf91]/12 px-3 py-1 text-[10px] font-bold uppercase text-[#0f8c63]">{strongestSubject ? `${strongestSubject.score}%` : 'N/A'}</span></div></div>
