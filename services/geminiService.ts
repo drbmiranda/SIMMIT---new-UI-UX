@@ -93,6 +93,51 @@ const withRetry = async <T>(apiCall: () => Promise<T>, maxRetries = 3, initialDe
 
 
 // A instruÃ§Ã£o de sistema agora Ã© mais genÃ©rica; o contexto da matÃ©ria serÃ¡ passado na primeira mensagem.
+const flashcardSchema = {
+    type: Type.OBJECT,
+    properties: {
+        question: { type: Type.STRING },
+        answer: { type: Type.STRING },
+    },
+    required: ["question", "answer"]
+};
+
+const flashcardsResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+        flashcards: { type: Type.ARRAY, items: flashcardSchema },
+    },
+    required: ["flashcards"]
+};
+
+const questionSchema = {
+    type: Type.OBJECT,
+    properties: {
+        question: { type: Type.STRING },
+        options: { type: Type.ARRAY, items: { type: Type.STRING } },
+        correctAnswer: { type: Type.STRING, description: "O texto exato da alternativa correta." },
+        explanation: { type: Type.STRING, description: "Uma breve explicacao do por que a resposta esta correta." },
+    },
+    required: ["question", "options", "correctAnswer", "explanation"]
+};
+
+const questionsResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+        questions: { type: Type.ARRAY, items: questionSchema },
+    },
+    required: ["questions"]
+};
+
+const performanceAnalysisResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+        strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+        improvements: { type: Type.ARRAY, items: { type: Type.STRING } },
+    },
+    required: ["strengths", "improvements"]
+};
+
 export const initializeChat = (): Chat => {
   const ai = getGenAI();
   const config: GenerateContentParameters['config'] = {
@@ -293,41 +338,11 @@ export const generateFeedback = async (prompt: string): Promise<{feedback: strin
 
 export const generateQuestionsFromText = async (fileContent: string): Promise<MultipleChoiceQuestion[]> => {
     const ai = getGenAI();
-    const prompt = `Com base no seguinte texto, crie 5 questÃµes de mÃºltipla escolha, no estilo de prova de residÃªncia mÃ©dica. Cada questÃ£o deve ter um enunciado claro, 4 alternativas e uma explicaÃ§Ã£o para a resposta correta. O texto Ã©:\n\n${fileContent}`;
+    const prompt = `Com base no seguinte texto, crie 5 quest??es de m??ltipla escolha, no estilo de prova de resid??ncia m??dica. Cada quest??o deve ter um enunciado claro, 4 alternativas e uma explica????o para a resposta correta. O texto ??:
 
-    const questionSchema = {
-        type: Type.OBJECT,
-        properties: {
-            question: { type: Type.STRING },
-            options: { type: Type.ARRAY, items: { type: Type.STRING } },
-            correctAnswer: { type: Type.STRING, description: "O texto exato da alternativa correta." },
-            explanation: { type: Type.STRING, description: "Uma breve explicaÃ§Ã£o do porquÃª a resposta estÃ¡ correta." },
-        },
-        required: ["question", "options", "correctAnswer", "explanation"]
-    };
+${fileContent}`;
 
-    const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      cenarioDoAluno: { type: Type.STRING },
-      tarefasDoAluno: { type: Type.ARRAY, items: { type: Type.STRING } },
-      instrucoesDoPaciente: { type: Type.STRING },
-      criteriosDeAvaliacao: { type: Type.ARRAY, items: { type: Type.STRING } },
-      fichaDoPaciente: {
-        type: Type.OBJECT,
-        properties: {
-          nome: { type: Type.STRING },
-          idade: { type: Type.NUMBER, nullable: true },
-          sexo: { type: Type.STRING, enum: ['Masculino', 'Feminino'] },
-          queixaPrincipal: { type: Type.STRING }
-        },
-        required: ['nome', 'idade', 'sexo', 'queixaPrincipal']
-      }
-    },
-    required: ['cenarioDoAluno', 'tarefasDoAluno', 'instrucoesDoPaciente', 'criteriosDeAvaliacao', 'fichaDoPaciente']
-  };
-
-    const systemInstruction = `VocÃª Ã© um assistente especialista em criar flashcards de alto rendimento para estudantes de medicina. Sua resposta deve ser APENAS um objeto JSON vÃ¡lido.`;
+    const systemInstruction = `Voce e um assistente especialista em criar questoes de alto rendimento para estudantes de medicina. Sua resposta deve ser APENAS um objeto JSON valido no formato { "questions": [...] }.`;
 
     try {
         return await withRetry(async () => {
@@ -337,71 +352,41 @@ export const generateQuestionsFromText = async (fileContent: string): Promise<Mu
                 config: {
                     systemInstruction: systemInstruction,
                     responseMimeType: "application/json",
-                    responseSchema: responseSchema,
+                    responseSchema: questionsResponseSchema,
                 }
             });
 
             const jsonText = response.text.trim();
             try {
                 const parsed = JSON.parse(jsonText);
-                return parsed.questions as MultipleChoiceQuestion[];
+                return Array.isArray(parsed.questions) ? parsed.questions as MultipleChoiceQuestion[] : [];
             } catch (parseError) {
                 console.error("Failed to parse JSON from Gemini:", jsonText, parseError);
-                throw new Error("A resposta da IA nÃ£o foi um JSON vÃ¡lido.");
+                throw new Error("A resposta da IA n??o foi um JSON v??lido.");
             }
         });
     } catch (error) {
-        console.error("Erro final ao gerar questÃµes:", error);
+        console.error("Erro final ao gerar quest??es:", error);
         if (error instanceof Error) {
             if (error.message.includes("429")) {
-                throw new Error("O servidor estÃ¡ sobrecarregado. Por favor, aguarde um momento antes de tentar novamente.");
+                throw new Error("O servidor est?? sobrecarregado. Por favor, aguarde um momento antes de tentar novamente.");
             }
             if (error.message.includes("API key not valid")) {
-                throw new Error("A chave da API Gemini nÃ£o Ã© vÃ¡lida. Por favor, verifique sua configuraÃ§Ã£o.");
+                throw new Error("A chave da API Gemini n??o ?? v??lida. Por favor, verifique sua configura????o.");
             }
             throw error;
         }
-        throw new Error("NÃ£o foi possÃ­vel gerar as questÃµes. A resposta da API pode ter sido invÃ¡lida.");
+        throw new Error("N??o foi poss??vel gerar as quest??es. A resposta da API pode ter sido inv??lida.");
     }
 };
 
 export const generateFlashcardsFromText = async (fileContent: string): Promise<{ flashcards: Flashcard[] }> => {
     const ai = getGenAI();
-    const prompt = `Com base no texto a seguir, crie 15 flashcards de revisÃ£o em medicina. Cada flashcard deve ter uma pergunta clara e uma resposta concisa. Texto:
+    const prompt = `Com base no texto a seguir, crie 15 flashcards de revis??o em medicina. Cada flashcard deve ter uma pergunta clara e uma resposta concisa. Texto:
 
 ${fileContent}`;
 
-    const flashcardSchema = {
-        type: Type.OBJECT,
-        properties: {
-            question: { type: Type.STRING },
-            answer: { type: Type.STRING },
-        },
-        required: ["question", "answer"]
-    };
-
-    const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      cenarioDoAluno: { type: Type.STRING },
-      tarefasDoAluno: { type: Type.ARRAY, items: { type: Type.STRING } },
-      instrucoesDoPaciente: { type: Type.STRING },
-      criteriosDeAvaliacao: { type: Type.ARRAY, items: { type: Type.STRING } },
-      fichaDoPaciente: {
-        type: Type.OBJECT,
-        properties: {
-          nome: { type: Type.STRING },
-          idade: { type: Type.NUMBER, nullable: true },
-          sexo: { type: Type.STRING, enum: ['Masculino', 'Feminino'] },
-          queixaPrincipal: { type: Type.STRING }
-        },
-        required: ['nome', 'idade', 'sexo', 'queixaPrincipal']
-      }
-    },
-    required: ['cenarioDoAluno', 'tarefasDoAluno', 'instrucoesDoPaciente', 'criteriosDeAvaliacao', 'fichaDoPaciente']
-  };
-
-    const systemInstruction = `VocÃª Ã© um assistente especialista em criar flashcards de alto rendimento para estudantes de medicina. Sua resposta deve ser APENAS um objeto JSON vÃ¡lido.`;
+    const systemInstruction = `Voce e um assistente especialista em criar flashcards de alto rendimento para estudantes de medicina. Sua resposta deve ser APENAS um objeto JSON valido no formato { "flashcards": [...] }.`;
 
     try {
         return await withRetry(async () => {
@@ -411,7 +396,7 @@ ${fileContent}`;
                 config: {
                     systemInstruction: systemInstruction,
                     responseMimeType: "application/json",
-                    responseSchema: responseSchema,
+                    responseSchema: flashcardsResponseSchema,
                 }
             });
 
@@ -420,51 +405,20 @@ ${fileContent}`;
                 return JSON.parse(jsonText) as { flashcards: Flashcard[] };
             } catch (parseError) {
                 console.error("Failed to parse JSON from Gemini for flashcards from text:", jsonText, parseError);
-                throw new Error("A resposta da IA para os flashcards nÃ£o foi um JSON vÃ¡lido.");
+                throw new Error("A resposta da IA para os flashcards n??o foi um JSON v??lido.");
             }
         });
     } catch (error) {
         console.error("Erro final ao gerar flashcards a partir do texto:", error);
-        throw new Error("NÃ£o foi possÃ­vel gerar os flashcards. Tente novamente mais tarde.");
+        throw new Error("N??o foi poss??vel gerar os flashcards. Tente novamente mais tarde.");
     }
 };
 
-
 export const generateFlashcards = async (subject: MedicalSubject): Promise<{ flashcards: Flashcard[] }> => {
     const ai = getGenAI();
-    const prompt = `Gere 15 flashcards de revisÃ£o para a matÃ©ria de ${subject} em medicina. Cada flashcard deve ter uma pergunta e uma resposta concisa e direta, ideal para memorizaÃ§Ã£o.`;
+    const prompt = `Gere 15 flashcards de revis??o para a mat??ria de ${subject} em medicina. Cada flashcard deve ter uma pergunta e uma resposta concisa e direta, ideal para memoriza????o.`;
 
-    const flashcardSchema = {
-        type: Type.OBJECT,
-        properties: {
-            question: { type: Type.STRING },
-            answer: { type: Type.STRING },
-        },
-        required: ["question", "answer"]
-    };
-
-    const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      cenarioDoAluno: { type: Type.STRING },
-      tarefasDoAluno: { type: Type.ARRAY, items: { type: Type.STRING } },
-      instrucoesDoPaciente: { type: Type.STRING },
-      criteriosDeAvaliacao: { type: Type.ARRAY, items: { type: Type.STRING } },
-      fichaDoPaciente: {
-        type: Type.OBJECT,
-        properties: {
-          nome: { type: Type.STRING },
-          idade: { type: Type.NUMBER, nullable: true },
-          sexo: { type: Type.STRING, enum: ['Masculino', 'Feminino'] },
-          queixaPrincipal: { type: Type.STRING }
-        },
-        required: ['nome', 'idade', 'sexo', 'queixaPrincipal']
-      }
-    },
-    required: ['cenarioDoAluno', 'tarefasDoAluno', 'instrucoesDoPaciente', 'criteriosDeAvaliacao', 'fichaDoPaciente']
-  };
-
-    const systemInstruction = `VocÃª Ã© um assistente especialista em criar flashcards de alto rendimento para estudantes de medicina. Sua resposta deve ser APENAS um objeto JSON vÃ¡lido, sem nenhum texto adicional.`;
+    const systemInstruction = `Voce e um assistente especialista em criar flashcards de alto rendimento para estudantes de medicina. Sua resposta deve ser APENAS um objeto JSON valido, sem nenhum texto adicional, no formato { "flashcards": [...] }.`;
 
     try {
         return await withRetry(async () => {
@@ -474,7 +428,7 @@ export const generateFlashcards = async (subject: MedicalSubject): Promise<{ fla
                 config: {
                     systemInstruction: systemInstruction,
                     responseMimeType: "application/json",
-                    responseSchema: responseSchema,
+                    responseSchema: flashcardsResponseSchema,
                 }
             });
 
@@ -483,53 +437,32 @@ export const generateFlashcards = async (subject: MedicalSubject): Promise<{ fla
                 return JSON.parse(jsonText) as { flashcards: Flashcard[] };
             } catch (parseError) {
                 console.error("Failed to parse JSON from Gemini for flashcards:", jsonText, parseError);
-                throw new Error("A resposta da IA para os flashcards nÃ£o foi um JSON vÃ¡lido.");
+                throw new Error("A resposta da IA para os flashcards n??o foi um JSON v??lido.");
             }
         });
     } catch (error) {
         console.error("Erro final ao gerar flashcards:", error);
-        throw new Error("NÃ£o foi possÃ­vel gerar os flashcards. Tente novamente mais tarde.");
+        throw new Error("N??o foi poss??vel gerar os flashcards. Tente novamente mais tarde.");
     }
 };
 
-
 export const analyzeStudentPerformance = async (results: SimulationResult[]): Promise<PerformanceAnalysis> => {
     const ai = getGenAI();
-    // Use only the last 10 results to avoid overly large prompts and stay relevant
     const recentResults = results.slice(0, 10);
-    const feedbackHistory = recentResults.map(r => `MatÃ©ria: ${r.subject}\nPontuaÃ§Ã£o: ${r.final_score}\nFeedback: ${r.feedback_text}`).join("\n\n---\n\n");
+    const feedbackHistory = recentResults
+        .map(r => `Materia: ${r.subject}\nPontuacao: ${r.final_score}\nFeedback: ${r.feedback_text}`)
+        .join("\n\n---\n\n");
 
     const prompt = `
-        VocÃª Ã© um preceptor de medicina experiente analisando o histÃ³rico de desempenho de um estudante em vÃ¡rias simulaÃ§Ãµes OSCE.
-        Com base no histÃ³rico de feedbacks fornecido abaixo, identifique os pontos fortes consistentes e as principais Ã¡reas que necessitam de melhoria.
-        Seja conciso e direto. ForneÃ§a de 2 a 4 itens para cada categoria.
+        Voce e um preceptor de medicina experiente analisando o historico de desempenho de um estudante em varias simulacoes OSCE.
+        Com base no historico de feedbacks fornecido abaixo, identifique os pontos fortes consistentes e as principais areas que necessitam de melhoria.
+        Seja conciso e direto. Forneca de 2 a 4 itens para cada categoria.
 
-        HISTÃ“RICO DE FEEDBACKS:
+        HISTORICO DE FEEDBACKS:
         ${feedbackHistory}
     `;
 
-    const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      cenarioDoAluno: { type: Type.STRING },
-      tarefasDoAluno: { type: Type.ARRAY, items: { type: Type.STRING } },
-      instrucoesDoPaciente: { type: Type.STRING },
-      criteriosDeAvaliacao: { type: Type.ARRAY, items: { type: Type.STRING } },
-      fichaDoPaciente: {
-        type: Type.OBJECT,
-        properties: {
-          nome: { type: Type.STRING },
-          idade: { type: Type.NUMBER, nullable: true },
-          sexo: { type: Type.STRING, enum: ['Masculino', 'Feminino'] },
-          queixaPrincipal: { type: Type.STRING }
-        },
-        required: ['nome', 'idade', 'sexo', 'queixaPrincipal']
-      }
-    },
-    required: ['cenarioDoAluno', 'tarefasDoAluno', 'instrucoesDoPaciente', 'criteriosDeAvaliacao', 'fichaDoPaciente']
-  };
-
-    const systemInstruction = `Sua Ãºnica funÃ§Ã£o Ã© analisar o desempenho de um estudante de medicina com base em seu histÃ³rico e retornar um objeto JSON com 'strengths' e 'improvements'. Responda APENAS com o JSON.`;
+    const systemInstruction = `Sua unica funcao e analisar o desempenho de um estudante de medicina com base em seu historico e retornar um objeto JSON com "strengths" e "improvements". Responda APENAS com o JSON.`;
 
     try {
         return await withRetry(async () => {
@@ -539,7 +472,7 @@ export const analyzeStudentPerformance = async (results: SimulationResult[]): Pr
                 config: {
                     systemInstruction: systemInstruction,
                     responseMimeType: "application/json",
-                    responseSchema: responseSchema,
+                    responseSchema: performanceAnalysisResponseSchema,
                 }
             });
             const jsonText = response.text.trim();
@@ -547,13 +480,12 @@ export const analyzeStudentPerformance = async (results: SimulationResult[]): Pr
                 return JSON.parse(jsonText) as PerformanceAnalysis;
             } catch (parseError) {
                 console.error("Failed to parse JSON for performance analysis:", jsonText, parseError);
-                throw new Error("A resposta da IA para a anÃ¡lise de desempenho nÃ£o foi um JSON vÃ¡lido.");
+                throw new Error("A resposta da IA para a analise de desempenho nao foi um JSON valido.");
             }
         });
     } catch (error) {
         console.error("Erro final ao analisar desempenho:", error);
-        // Re-throw a user-friendly error
-        throw new Error("NÃ£o foi possÃ­vel gerar a anÃ¡lise de desempenho. Tente novamente mais tarde.");
+        throw new Error("Nao foi possivel gerar a analise de desempenho. Tente novamente mais tarde.");
     }
 };
 

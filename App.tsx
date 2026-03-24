@@ -98,7 +98,7 @@ const normalizeCommandText = (text: string) =>
 
 const getUserFirstName = (profile: Profile | null) => {
   const fullName = profile?.full_name?.trim();
-  if (!fullName) return 'mÃƒÂ©dico(a)';
+  if (!fullName) return 'm\u00e9dico(a)';
   return fullName.split(/\s+/)[0];
 };
 
@@ -113,13 +113,13 @@ const getDoctorHonorific = (profile: Profile | null) => {
 
 const getDoctorDisplayName = (profile: Profile | null) => `${getDoctorHonorific(profile)} ${getUserFirstName(profile)}`.trim();
 const EXAM_PROMPT_HINTS: Partial<Record<SimmitCommandKey, string>> = {
-  examGeneral: 'O usuÃƒÆ’Ã‚Â¡rio estÃƒÆ’Ã‚Â¡ avaliando o estado geral agora. Descreva BEG/REG/mau estado geral, fÃƒÆ’Ã‚Â¡cies, postura, consciÃƒÆ’Ã‚Âªncia e sinais evidentes.',
-  examVitals: 'O usuÃƒÆ’Ã‚Â¡rio estÃƒÆ’Ã‚Â¡ checando sinais vitais agora. ForneÃƒÆ’Ã‚Â§a PA, FC, FR, temperatura, SatO2 e dor, coerentes com o caso.',
-  examInspection: 'O usuÃƒÆ’Ã‚Â¡rio estÃƒÆ’Ã‚Â¡ realizando a inspeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o agora. Descreva achados visuais estÃƒÆ’Ã‚Â¡ticos e dinÃƒÆ’Ã‚Â¢micos do segmento relevante.',
-  examPalpation: 'O usuÃƒÆ’Ã‚Â¡rio estÃƒÆ’Ã‚Â¡ realizando a palpaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o agora. Descreva temperatura, dor, massas, edema, frÃƒÆ’Ã‚Âªmitos e profundidade.',
-  examPercussion: 'O usuÃƒÆ’Ã‚Â¡rio estÃƒÆ’Ã‚Â¡ realizando a percussÃƒÆ’Ã‚Â£o agora. Descreva timpanismo, macicez ou claro pulmonar conforme o caso.',
-  examAuscultation: 'O usuÃƒÆ’Ã‚Â¡rio estÃƒÆ’Ã‚Â¡ realizando a ausculta agora. Descreva sons fisiolÃƒÆ’Ã‚Â³gicos e adventÃƒÆ’Ã‚Â­cios coerentes com o caso.',
-  examPhysical: 'O usuÃƒÆ’Ã‚Â¡rio solicitou exame fÃƒÆ’Ã‚Â­sico completo. Descreva achados relevantes e coerentes com o caso.'
+  examGeneral: 'O usu\u00e1rio est\u00e1 avaliando o estado geral agora. Descreva BEG/REG/mau estado geral, f\u00e1cies, postura, consci\u00eancia e sinais evidentes.',
+  examVitals: 'O usu\u00e1rio est\u00e1 checando sinais vitais agora. Forne\u00e7a PA, FC, FR, temperatura, SatO2 e dor, coerentes com o caso.',
+  examInspection: 'O usu\u00e1rio est\u00e1 realizando a inspe\u00e7\u00e3o agora. Descreva achados visuais est\u00e1ticos e din\u00e2micos do segmento relevante.',
+  examPalpation: 'O usu\u00e1rio est\u00e1 realizando a palpa\u00e7\u00e3o agora. Descreva temperatura, dor, massas, edema, fr\u00eamitos e profundidade.',
+  examPercussion: 'O usu\u00e1rio est\u00e1 realizando a percuss\u00e3o agora. Descreva timpanismo, macicez ou claro pulmonar conforme o caso.',
+  examAuscultation: 'O usu\u00e1rio est\u00e1 realizando a ausculta agora. Descreva sons fisiol\u00f3gicos e advent\u00edcios coerentes com o caso.',
+  examPhysical: 'O usu\u00e1rio solicitou exame f\u00edsico completo. Descreva achados relevantes e coerentes com o caso.'
 };
 
 
@@ -723,7 +723,7 @@ export const App = () => {
 
           sender: 'SIMMIT',
 
-          text: sanitizeMessageText('SIMMIT: Lembrete rÃƒÆ’Ã‚Â¡pido: vocÃƒÆ’Ã‚Âª ÃƒÆ’Ã‚Â© o mÃƒÆ’Ã‚Â©dico e a IA ÃƒÆ’Ã‚Â© o paciente. Para avanÃƒÆ’Ã‚Â§ar, use o painel de procedimentos para exame fÃƒÆ’Ã‚Â­sico ou solicitaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes.'),
+          text: sanitizeMessageText('SIMMIT: Lembrete r\u00e1pido: voc\u00ea \u00e9 o m\u00e9dico e a IA \u00e9 o paciente. Para avan\u00e7ar, use o painel de procedimentos para exame f\u00edsico ou solicita\u00e7\u00f5es.'),
 
           timestamp: Date.now(),
 
@@ -1138,7 +1138,7 @@ ${sanitizedScenario}`,
 
         const criteriaMatch = state.currentOsceCase.match(OSCE_CRITERIA_REGEX);
 
-        const osceCriteria = criteriaMatch ? criteriaMatch[1].trim() : "CritÃƒÆ’Ã‚Â©rios de avaliaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o nÃƒÆ’Ã‚Â£o encontrados.";
+        const osceCriteria = criteriaMatch ? criteriaMatch[1].trim() : "Crit\u00e9rios de avalia\u00e7\u00e3o n\u00e3o encontrados.";
 
 
 
@@ -1154,7 +1154,7 @@ ${sanitizedScenario}`,
 
 
 
-        const prompt = `${FEEDBACK_PROMPT_TEMPLATE(chatHistory, osceCriteria)}\nOriente o feedback chamando o usuÃƒÆ’Ã‚Â¡rio de ${doctorDisplayName}. Nunca use o termo "aluno".`;
+        const prompt = `${FEEDBACK_PROMPT_TEMPLATE(chatHistory, osceCriteria)}\nOriente o feedback chamando o usu\u00e1rio de ${doctorDisplayName}. Nunca use o termo "aluno".`;
 
         
 
@@ -1332,7 +1332,7 @@ ${sanitizedScenario}`,
 
           sender: 'SIMMIT',
 
-          text: `SIMMIT: VocÃƒÆ’Ã‚Âª ÃƒÆ’Ã‚Â© o mÃƒÆ’Ã‚Â©dico nesta consulta e a IA ÃƒÆ’Ã‚Â© o paciente. Fale diretamente com o paciente e, quando precisar, use o menu de intervenÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes. Para feedback, use ${SIMMIT_COMMANDS.closeCase}.`,
+          text: `SIMMIT: Voc\u00ea \u00e9 o m\u00e9dico nesta consulta e a IA \u00e9 o paciente. Fale diretamente com o paciente e, quando precisar, use o menu de interven\u00e7\u00f5es. Para feedback, use ${SIMMIT_COMMANDS.closeCase}.`,
 
           timestamp: Date.now() + 1,
 
@@ -1396,7 +1396,7 @@ ${sanitizedScenario}`,
 
         sender: 'SIMMIT',
 
-        text: `SIMMIT: VocÃƒÆ’Ã‚Âª ÃƒÆ’Ã‚Â© o mÃƒÆ’Ã‚Â©dico; a IA ÃƒÆ’Ã‚Â© o paciente. Para solicitar aÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes clÃƒÆ’Ã‚Â­nicas, use o menu de intervenÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes.
+        text: `SIMMIT: Voc\u00ea \u00e9 o m\u00e9dico; a IA \u00e9 o paciente. Para solicitar a\u00e7\u00f5es cl\u00ednicas, use o menu de interven\u00e7\u00f5es.
 Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
         timestamp: Date.now() + 1,
@@ -1424,7 +1424,7 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
       examPalpation: 'Palpa??o',
       examPercussion: 'Percuss?o',
       examAuscultation: 'Ausculta',
-      examPhysical: 'Exame fÃƒÆ’Ã‚Â­sico completo',
+      examPhysical: 'Exame f\u00edsico completo',
       labResults: 'Resultados de exames laboratoriais',
       imageResults: 'Resultados de exames de imagem',
     };
@@ -1539,7 +1539,7 @@ Quando quiser o feedback, digite ${SIMMIT_COMMANDS.closeCase}.`,
 
       const patientText = sanitizeMessageText(processedText);
 
-      const finalPatientText = patientText || "Desculpe, nÃƒÆ’Ã‚Â£o consegui responder agora. Pode repetir?";
+      const finalPatientText = patientText || "Desculpe, n\u00e3o consegui responder agora. Pode repetir?";
 
 
 

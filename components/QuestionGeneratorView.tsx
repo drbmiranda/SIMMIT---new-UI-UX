@@ -16,7 +16,7 @@ const extractTextFromTxt = async (file: File): Promise<string> => file.text();
 
 const extractTextFromPdf = async (file: File): Promise<string> => {
   const arrayBuffer = await file.arrayBuffer();
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let fullText = '';
