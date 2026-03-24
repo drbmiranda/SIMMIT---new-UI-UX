@@ -5,11 +5,14 @@ type RuntimeEnv = {
   VITE_SUPABASE_QUESTIONS_ANON_KEY?: string;
   VITE_SUPABASE_QUESTIONS_TABLE?: string;
   VITE_GEMINI_API_KEY?: string;
+  VITE_APP_URL?: string;
 };
 
+type WindowRuntimeEnv = RuntimeEnv | undefined;
+
 export const getRuntimeEnv = (): RuntimeEnv => {
-  const windowEnv =
-    typeof window !== "undefined" ? (window as Window).__ENV : undefined;
+  const win = typeof window !== "undefined" ? (window as Window & { __ENV?: WindowRuntimeEnv; ENV?: WindowRuntimeEnv }) : undefined;
+  const windowEnv = win?.__ENV ?? win?.ENV;
 
   return {
     VITE_SUPABASE_URL:
@@ -28,6 +31,7 @@ export const getRuntimeEnv = (): RuntimeEnv => {
       import.meta.env.VITE_SUPABASE_QUESTIONS_TABLE,
     VITE_GEMINI_API_KEY:
       windowEnv?.VITE_GEMINI_API_KEY ?? import.meta.env.VITE_GEMINI_API_KEY,
+    VITE_APP_URL:
+      windowEnv?.VITE_APP_URL ?? import.meta.env.VITE_APP_URL,
   };
 };
-
